@@ -47,7 +47,7 @@ def set(opt_cmd={}):
     opt_base = load_options(fname)
     # override with command line arguments
     opt = override_options(opt_base,opt_cmd,key_stack=[],safe_check=True)
-    process_options(opt)
+    process_options(opt)  #여기서 cpu, gpu 되는데
     log.options(opt)
     return opt
 
