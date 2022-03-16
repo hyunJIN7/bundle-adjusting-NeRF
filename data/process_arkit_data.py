@@ -22,7 +22,7 @@ def config_parser():
                         help='input data directory')
 
     #keyframe options
-    parser.add_argument("--min_angle_keyframe", type=float, default=2,
+    parser.add_argument("--min_angle_keyframe", type=float, default=0.5,
                         help='minimum angle between key frames')
     parser.add_argument("--min_distance_keyframe", type=float, default=0.01,
                         help='minimum distance between key frames')
@@ -73,7 +73,6 @@ def sync_intrinsics_and_poses(cam_file, pose_file, out_file):
     assert os.path.isfile(pose_file), "camera info:{} not found".format(pose_file)
     with open(pose_file, "r") as f:
         cam_pose_lines = f.readlines()
-
     cam_poses = []
     for line in cam_pose_lines:
         line_data_list = line.split(',')
@@ -91,8 +90,12 @@ def sync_intrinsics_and_poses(cam_file, pose_file, out_file):
                 cam_poses[ip][0] - cam_intrinsics[i][0]):
             ip += 1
         cam_pose = cam_poses[ip][:4] + cam_poses[ip][5:] + [cam_poses[ip][4]]
-        line = [str(a) for a in cam_pose] #time,tx,ty,tz,qw,qx,qy,qz #TODO : timestamp.....
-        line[0] = str(i).zfill(5)  # name,tx,ty,tz,qw,qx,qy,qz
+        line = []
+        line.append(str(cam_intrinsics[i][0])) # timestamp
+        line.append(str(i).zfill(5))  # timestamp
+        for p in cam_pose[1:] : line.append(str(p))
+        #line.append(str(a) for a in cam_pose[1:])
+        #line = [str(a) for a in cam_pose] #time,name,tx,ty,tz,qw,qx,qy,qz #TODO : timestamp.....
         lines.append(' '.join(line) + '\n')
 
     dirname = os.path.dirname(out_file)
@@ -111,11 +114,13 @@ def load_camera_pose(cam_pose_dir): # SyncedPose.txt
                                 .format(cam_pose_dir))
 
     pose = []
-    def process(line_data_list):   #syncedpose.txt  : imagenum(string) tx ty tz(m) qx qy qz qw
+    timestamp_name = []
+    def process(line_data_list):   #syncedpose.txt  : timestamp imagenum(string) tx ty tz(m) qx qy qz qw
         line_data = np.array(line_data_list, dtype=float)
+        timestamp_name.append(line_data[:2]) # timestamp, name
         # fid = line_data_list[0] #0부터
-        trans = line_data[1:4]
-        quat = line_data[4:]
+        trans = line_data[2:5]
+        quat = line_data[5:]
         rot_mat = quat2mat(np.append(quat[-1], quat[:3]).tolist())
                             # 여기선 (w,x,y,z) 순 인듯
         #TODO :check
@@ -140,16 +145,13 @@ def load_camera_pose(cam_pose_dir): # SyncedPose.txt
             continue
         process(line_data_list)
 
-    return pose
+    return pose,timestamp_name
 
 
 def process_arkit_data(args,ori_size=(1920, 1440), size=(640, 480)):
-    # print("!! ",os.path.realpath(os.path.join(args.basedir)))
-    # print("!! ",os.path.abspath(os.path.join(args.basedir)))
     basedir = os.path.join(args.basedir,args.expname)
-    # print("!! ",os.path.realpath(basedir))
-    # print("!! ",os.path.abspath(basedir))
-    print('Extract images from video...')
+
+    # print('Extract images from video...')
     video_path = os.path.join(basedir, 'Frames.m4v')
     image_path = os.path.join(basedir, 'images')
     if not os.path.exists(image_path):
@@ -160,11 +162,11 @@ def process_arkit_data(args,ori_size=(1920, 1440), size=(640, 480)):
     print('Load intrinsics and extrinsics')
     K = sync_intrinsics_and_poses(os.path.join(basedir, 'Frames.txt'), os.path.join(basedir, 'ARposes.txt'),
                             os.path.join(basedir, 'SyncedPoses.txt')) #imagenum(string) tx ty tz(m) qx qy qz qw
-    K[0,:] /= (ori_size[0] / size[0]) #TODO: 이거 메인 트레인 파트에서도 해줘야...
-    K[1, :] /= (ori_size[1] / size[1])  #resize 전 크기가 orgin_size 이기 때문에
+    # K[0,:] /= (ori_size[0] / size[0])
+    # K[1, :] /= (ori_size[1] / size[1])  #resize 전 크기가 orgin_size 이기 때문에
 
     #quat -> rot
-    all_cam_pose = load_camera_pose(os.path.join(basedir, 'SyncedPoses.txt'))
+    all_cam_pose,sync_timestamp_anme = load_camera_pose(os.path.join(basedir, 'SyncedPoses.txt'))
 
     """Keyframes selection"""
     all_ids = [0]
@@ -187,36 +189,43 @@ def process_arkit_data(args,ori_size=(1920, 1440), size=(640, 480)):
     """final select image,poses"""
     imgs = []
     poses = []
+    select_timestamp_name = []
     for i in all_ids:
         image_file_name = os.path.join(image_path, str(i).zfill(5) + '.jpg')
         imgs.append(imageio.imread(image_file_name))
         poses.append(all_cam_pose[i])
+        select_timestamp_name.append(sync_timestamp_anme[i])
     imgs = (np.array(imgs) / 255.).astype(np.float32)
     poses = np.array(poses).astype(np.float32)
+    select_timestamp_name = np.array(select_timestamp_name)
+    # select_timestamp_name[,1] = int(select_timestamp_name[,1])
 
     """train, val, test"""
     i_split = []
     n = poses.shape[0]  # count of image
-    train_indexs = np.linspace(0, n, (int)(n * 0.9), endpoint=False, dtype=int)
+    train_indexs = np.linspace(0, n, (int)(n * 0.88), endpoint=False, dtype=int)
     i_split.append(train_indexs)
-    val_indexs = np.linspace(0, n, (int)(n * 0.2), endpoint=False, dtype=int)
+    val_indexs = np.linspace(0, n, (int)(n * 0.45), endpoint=False, dtype=int)
     i_split.append(val_indexs)
-    test_indexs = np.random.choice(n, (int)(n * 0.2))
+    test_indexs = np.random.choice(n, (int)(n * 0.45))
     i_split.append(test_indexs)
     print('train : {0} , val : {1} , test : {2}'.format(train_indexs.shape[0],val_indexs.shape[0],test_indexs.shape[0]))
 
 
     # select 된 pose,image 파일 저장
-    def save_keyframe_data(dir, opt='train', index=[] ,images=[], pose=[]):
+    def save_keyframe_data(dir, opt='train', index=[] ,images=[], pose=[],all_cam_timestamp_name_pose=[]):
         image_dir = os.path.join(dir, opt)
-        pose_file = os.path.join(dir, 'transforms_{}.txt'.format(opt))
+        pose_file = os.path.join(dir, 'transforms_{}.txt'.format(opt)) #time imagename pose
         if not os.path.exists(image_dir):
             os.mkdir(image_dir)
 
         lines = []
         for i in range(len(index)):
             line = []
-            imageio.imwrite('{}/{}.png'.format(image_dir, str(index[i]).zfill(5)), img_as_ubyte(images[i]))
+            imageio.imwrite('{}/{}.jpg'.format(image_dir, str(index[i]).zfill(5)), img_as_ubyte(images[i]))
+            #TODO: timesatmp랑 이미지 ㅂ번호 같이 넣자
+            line.append(str(all_cam_timestamp_name_pose[i,0])) # timestamp
+            line.append(str(int(all_cam_timestamp_name_pose[i,1]) ).zfill(5) ) # image name
             for j in range(3):
                 for k in range(4) :
                     line.append(str(pose[i][j][k]))
@@ -228,17 +237,21 @@ def process_arkit_data(args,ori_size=(1920, 1440), size=(640, 480)):
     save_keyframe_data(basedir,'train',
                        train_indexs,
                        imgs[train_indexs],
-                       poses[train_indexs]);
+                       poses[train_indexs],
+                       select_timestamp_name[train_indexs]);
 
     save_keyframe_data(basedir,'val',
                        val_indexs,
                        imgs[val_indexs],
-                       poses[val_indexs]);
+                       poses[val_indexs],
+                       select_timestamp_name[val_indexs]);
+
 
     save_keyframe_data(basedir,'test',
                        test_indexs,
                        imgs[test_indexs],
-                       poses[test_indexs]);
+                       poses[test_indexs],
+                       select_timestamp_name[test_indexs]);
 
 # cd data 한 다음에 이 코드 실행해야하나봐 경로 이상해
 # python process_arkit_data.py --expname computer
