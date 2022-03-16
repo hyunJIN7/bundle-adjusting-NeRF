@@ -225,7 +225,7 @@ def process_arkit_data(args,ori_size=(1920, 1440), size=(640, 480)):
             imageio.imwrite('{}/{}.jpg'.format(image_dir, str(index[i]).zfill(5)), img_as_ubyte(images[i]))
             #TODO: timesatmp랑 이미지 ㅂ번호 같이 넣자
             line.append(str(all_cam_timestamp_name_pose[i,0])) # timestamp
-            line.append(str(int(all_cam_timestamp_name_pose[i,1]) ).zfill(5) ) # image name
+            line.append(opt+'/' + str(int(all_cam_timestamp_name_pose[i,1]) ).zfill(5) ) # image name
             for j in range(3):
                 for k in range(4) :
                     line.append(str(pose[i][j][k]))
