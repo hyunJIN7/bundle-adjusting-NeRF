@@ -45,7 +45,7 @@ class Dataset(torch.utils.data.Dataset):
     def preload_worker(self,data_list,load_func,q,lock,idx_tqdm):
         while True:
             idx = q.get()
-            data_list[idx] = load_func(self.opt,idx)
+            data_list[idx] = load_func(self.opt,idx) #TODO : arkit 에 get_image
             with lock:
                 idx_tqdm.update()
             q.task_done()

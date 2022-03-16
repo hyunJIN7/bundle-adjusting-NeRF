@@ -54,7 +54,7 @@ class Dataset(base.Dataset):
         sample.update(
             image=image,
             intr=intr,
-            pose=pose,
+            pose=pose,  #(3,4)
         )
         return sample
 

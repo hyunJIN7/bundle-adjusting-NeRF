@@ -204,11 +204,9 @@ def process_arkit_data(args,ori_size=(1920, 1440), size=(640, 480)):
     i_split = []
     n = poses.shape[0]  # count of image
     train_indexs = np.linspace(0, n, (int)(n * 0.88), endpoint=False, dtype=int)
-    i_split.append(train_indexs)
     val_indexs = np.linspace(0, n, (int)(n * 0.45), endpoint=False, dtype=int)
-    i_split.append(val_indexs)
     test_indexs = np.random.choice(n, (int)(n * 0.45))
-    i_split.append(test_indexs)
+    test_indexs.sort()
     print('train : {0} , val : {1} , test : {2}'.format(train_indexs.shape[0],val_indexs.shape[0],test_indexs.shape[0]))
 
 
@@ -222,7 +220,7 @@ def process_arkit_data(args,ori_size=(1920, 1440), size=(640, 480)):
         lines = []
         for i in range(len(index)):
             line = []
-            imageio.imwrite('{}/{}.jpg'.format(image_dir, str(index[i]).zfill(5)), img_as_ubyte(images[i]))
+            imageio.imwrite('{}/{}.jpg'.format(image_dir,str(int(all_cam_timestamp_name_pose[i,1]) ).zfill(5)), img_as_ubyte(images[i]))
             #TODO: timesatmp랑 이미지 ㅂ번호 같이 넣자
             line.append(str(all_cam_timestamp_name_pose[i,0])) # timestamp
             line.append(opt+'/' + str(int(all_cam_timestamp_name_pose[i,1]) ).zfill(5) ) # image name
