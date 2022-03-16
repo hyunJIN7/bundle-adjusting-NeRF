@@ -206,7 +206,7 @@ class Graph(nerf.Graph):
         self.nerf = NeRF(opt)
         if opt.nerf.fine_sampling:
             self.nerf_fine = NeRF(opt)
-        self.pose_eye = torch.eye(3,4).to(opt.device)
+        self.pose_eye = torch.eye(3,4).to(opt.device) #TODO : 초기 포즈???
 
     def get_pose(self,opt,var,mode=None):
         if mode=="train":

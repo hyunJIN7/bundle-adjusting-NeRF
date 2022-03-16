@@ -47,7 +47,7 @@ def set(opt_cmd={}):
     opt_base = load_options(fname)
     # override with command line arguments
     opt = override_options(opt_base,opt_cmd,key_stack=[],safe_check=True)
-    process_options(opt)  #여기서 cpu, gpu 되는데
+    process_options(opt)
     log.options(opt)
     return opt
 
@@ -99,7 +99,7 @@ def process_options(opt):
         opt.name = str(opt.name)+"_{}".format(randkey)
     # other default options
     opt.output_path = "{0}/{1}/{2}".format(opt.output_root,opt.group,opt.name)
-    os.makedirs(opt.output_path,exist_ok=True)
+    os.makedirs(opt.output_path,exist_ok=True)  # ouput 폴더 만든다 .
     assert(isinstance(opt.gpu,int)) # disable multi-GPU support for now, single is enough
     opt.device = "cpu" if opt.cpu or not torch.cuda.is_available() else "cuda:{}".format(opt.gpu)
     opt.H,opt.W = opt.data.image_size

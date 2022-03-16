@@ -21,16 +21,16 @@ class Dataset(base.Dataset):
         super().__init__(opt,split)
         self.root = opt.data.root or "data/iphone"
         self.path = "{}/{}".format(self.root,opt.data.scene)
-        self.path_image = "{}/images".format(self.path)
+        self.path_image = "{}/rgb".format(self.path)  #TODO : file name
         self.list = sorted(os.listdir(self.path_image),key=lambda f: int(f.split(".")[0]))
         # manually split train/val subsets
-        num_val_split = int(len(self)*opt.data.val_ratio)
-        self.list = self.list[:-num_val_split] if split=="train" else self.list[-num_val_split:]
+        num_val_split = int(len(self)*opt.data.val_ratio) # len * 0.1
+        self.list = self.list[:-num_val_split] if split=="train" else self.list[-num_val_split:] #전체에서 0.9 : 0.1 = train : test 비율
         if subset: self.list = self.list[:subset]
         # preload dataset
         if opt.data.preload:
             self.images = self.preload_threading(opt,self.get_image)
-            self.cameras = self.preload_threading(opt,self.get_camera,data_str="cameras")
+            self.cameras = self.preload_threading(opt,self.get_camera,data_str="cameras") #get_all_camera_poses 로 감
 
     def prefetch_all_data(self,opt):
         assert(not opt.data.augment)
@@ -39,7 +39,12 @@ class Dataset(base.Dataset):
 
     def get_all_camera_poses(self,opt):
         # poses are unknown, so just return some dummy poses (identity transform)
-        return camera.pose(t=torch.zeros(len(self),3))
+        #
+        # pose_raw_all = [torch.tensor(f["transform_matrix"],dtype=torch.float32) for f in self.list]
+        # pose_canon_all = torch.stack([self.parse_raw_camera(opt,p) for p in pose_raw_all],dim=0)
+        #
+        pose = camera.pose(t=torch.zeros(len(self),3))  # TODO :Camera 초기 포즈
+        return pose #camera.pose(t=torch.zeros(len(self),3))
 
     def __getitem__(self,idx):
         opt = self.opt
@@ -52,7 +57,7 @@ class Dataset(base.Dataset):
         sample.update(
             image=image,
             intr=intr,
-            pose=pose,
+            pose=pose,  #shape (3,4)
         )
         return sample
 

@@ -51,7 +51,7 @@ class Dataset(torch.utils.data.Dataset):
             q.task_done()
 
     def preload_threading(self,opt,load_func,data_str="images"):
-        data_list = [None]*len(self)
+        data_list = [None]*len(self)  #0.1 갯수
         q = queue.Queue(maxsize=len(self))
         idx_tqdm = tqdm.tqdm(range(len(self)),desc="preloading {}".format(data_str),leave=False)
         for i in range(len(self)): q.put(i)
