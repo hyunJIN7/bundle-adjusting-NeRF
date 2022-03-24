@@ -118,9 +118,9 @@ class Model(base.Model):
         for i,batch in enumerate(loader):
             var = edict(batch)
             var = util.move_to_device(var,opt.device)
-            if opt.model=="barf" and opt.optim.test_photo:
+            if opt.data.dataset in ["arkit","blender"] and opt.optim.test_photo:
                 # run test-time optimization to factorize imperfection in optimized poses from view synthesis evaluation
-                var = self.evaluate_test_time_photometric_optim(opt,var)
+                var = self.evaluate_test_time_photometric_optim(opt,var) #TODO 이거뭐냐
             var = self.graph.forward(opt,var,mode="eval")
             # evaluate view synthesis
             invdepth = (1-var.depth)/var.opacity if opt.camera.ndc else 1/(var.depth/var.opacity+eps)
@@ -149,7 +149,7 @@ class Model(base.Model):
     @torch.no_grad()
     def generate_videos_synthesis(self,opt,eps=1e-10):
         self.graph.eval()
-        if opt.data.dataset=="blender":
+        if opt.data.dataset in ["arkit","blender"] : #TODO 이게 맞는건가   opt.data.dataset=="blender"
             test_path = "{}/test_view".format(opt.output_path)
             # assume the test view synthesis are already generated
             print("writing videos...")

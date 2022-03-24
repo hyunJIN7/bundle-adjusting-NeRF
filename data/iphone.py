@@ -21,16 +21,10 @@ class Dataset(base.Dataset):
         super().__init__(opt,split)
         self.root = opt.data.root or "data/iphone"
         self.path = "{}/{}".format(self.root,opt.data.scene)
-        self.path_image = "{}/train_val_images".format(self.path) if split != "train" else "{}/test".format(
+        self.path_image = "{}/train_val_images".format(self.path) if split != "test" else "{}/test".format(
             self.path)  # TODO : file name
         self.list = sorted(os.listdir(self.path_image), key=lambda f: int(f.split(".")[0]))
-        if split != "train" :#train,val
-            # manually split train/val subsets
-            num_val_split = int(len(self) * opt.data.val_ratio)  # len * 0.1
-            self.list = self.list[:-num_val_split] if split == "train" else self.list[
-                                                                            -num_val_split:]  # 전체에서 0.9 : 0.1 = train : test 비율
-
-        else:# test
+        if split == "test" :
             pose_fname = "{}/transforms_{}.txt".format(self.path, split)
             pose_file = os.path.join('./', pose_fname)
             assert os.path.isfile(pose_file), "pose info:{} not found".format(pose_file)
@@ -48,8 +42,13 @@ class Dataset(base.Dataset):
                 pose_raw = np.reshape(line_data_list[2:], (3, 4))
                 cam_pose.append(pose_raw)
             cam_pose = np.array(cam_pose, dtype=float)
-            self.cam_pose = cam_pose  # 이걸해야  self len 문제 발생 안함.
+            self.cam_pose = cam_pose
 
+        else:#train,val
+            # manually split train/val subsets
+            num_val_split = int(len(self) * opt.data.val_ratio)  # len * 0.1
+            self.list = self.list[:-num_val_split] if split == "train" else self.list[
+                                                                            -num_val_split:]  # 전체에서 0.9 : 0.1 = train : test 비율
 
         if subset: self.list = self.list[:subset]
         # preload dataset
@@ -119,5 +118,7 @@ class Dataset(base.Dataset):
         # intr = torch.tensor([[self.focal,0,self.raw_W/2],
         #                      [0,self.focal,self.raw_H/2],
         #                      [0,0,1]]).float()
-        pose = pose = torch.tensor(self.cam_pose[idx],dtype=torch.float32)#camera.pose(t=torch.zeros(3)) # dummy pose, won't be used
+        pose = camera.pose(t=torch.zeros(3))
+        if self.split == 'test':
+            pose = torch.tensor(self.cam_pose[idx],dtype=torch.float32)
         return intr,pose

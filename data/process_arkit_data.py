@@ -23,9 +23,9 @@ def config_parser():
 
     #keyframe options
     # 0.5,0.01 : 204,104
-    parser.add_argument("--min_angle_keyframe", type=float, default=15,
+    parser.add_argument("--min_angle_keyframe", type=float, default=10,
                         help='minimum angle between key frames')
-    parser.add_argument("--min_distance_keyframe", type=float, default=0.3,
+    parser.add_argument("--min_distance_keyframe", type=float, default=0.1,
                         help='minimum distance between key frames')
 
     #data
@@ -213,8 +213,7 @@ def process_arkit_data(args,ori_size=(1920, 1440), size=(640, 480)):
     train_indexs = np.linspace(0, n, n, endpoint=False, dtype=int)[:-num_val_split] #np.linspace(0, n, (int)(n * 0.9), endpoint=False, dtype=int)
     val_indexs = np.linspace(0, n, n, endpoint=False, dtype=int)[-num_val_split:]
     #validaion  train 안겹치게 구성해야해.
-
-    test_indexs = np.random.choice(all_cam_pose.shape[0], train_indexs.shape[0]*2) #키프레임셀렉에서말고 전체 싱크 맞춘거에서 테스트 데이터 뽑아
+    test_indexs = np.random.choice(len(all_cam_pose), train_indexs.shape[0]*2 , replace=False) #키프레임셀렉에서말고 전체 싱크 맞춘거에서 테스트 데이터 뽑아,비복원추출
     test_indexs.sort()
 
 
@@ -234,7 +233,7 @@ def process_arkit_data(args,ori_size=(1920, 1440), size=(640, 480)):
     print('train : {0} , val : {1} , test : {2}'.format(train_indexs.shape[0],val_indexs.shape[0],test_indexs.shape[0]))
 
 
-    # select 된 pose,image 파일 저장
+    # select pose,image 파일 저장
     def save_keyframe_data(dir, opt='train', index=[] ,images=[], pose=[],all_cam_timestamp_name_pose=[]):
         image_dir = os.path.join(dir, opt)
         pose_file = os.path.join(dir, 'transforms_{}.txt'.format(opt)) #time imagename pose
@@ -245,7 +244,7 @@ def process_arkit_data(args,ori_size=(1920, 1440), size=(640, 480)):
         for i in range(len(index)):
             line = []
             imageio.imwrite('{}/{}.jpg'.format(image_dir,str(int(all_cam_timestamp_name_pose[i,1]) ).zfill(5)), img_as_ubyte(images[i]))
-            #TODO: timesatmp랑 이미지 ㅂ번호 같이 넣자
+            #TODO: timesatmp랑 이미지 번호 같이 넣자
             line.append(str(all_cam_timestamp_name_pose[i,0])) # timestamp
             line.append(opt+'/' + str(int(all_cam_timestamp_name_pose[i,1]) ).zfill(5) ) # image name
             for j in range(3):
@@ -270,12 +269,12 @@ def process_arkit_data(args,ori_size=(1920, 1440), size=(640, 480)):
 
     save_keyframe_data(basedir,'test',
                        test_indexs,
-                       test_imgs[test_indexs],
-                       test_poses[test_indexs],
-                       test_timestamp_name[test_indexs]);
+                       test_imgs,
+                       test_poses,
+                       test_timestamp_name);
 
 # cd data 한 다음에 이 코드 실행해야하나봐 경로 이상해
-# python process_arkit_data.py --expname computer_debug
+# python process_arkit_data.py --expname server_desk_01
 # 다 실행한 이후엔 cd ../ 해주고
 if __name__ == '__main__':
     parser = config_parser()

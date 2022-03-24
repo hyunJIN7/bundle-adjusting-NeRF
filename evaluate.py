@@ -27,7 +27,7 @@ def main():
             #TODO : rgb image   --> generate_videos_synthesis
 
         m.restore_checkpoint(opt)
-        if opt.data.dataset in ["blender","llff","arkit"]: #TODO iphone은 테스트뷰 원래 저장안하는데 여기도 넣어볼까
+        if opt.data.dataset in ["blender","llff","arkit","iphone"]: #TODO iphone은 테스트뷰 원래 저장안하는데 여기도 넣어볼까
             m.evaluate_full(opt)
         m.generate_videos_synthesis(opt)
 

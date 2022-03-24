@@ -87,7 +87,7 @@ class Model(nerf.Model):
         # get ground-truth (canonical) camera poses
         pose_GT = self.train_data.get_all_camera_poses(opt).to(opt.device)  #(3,4)
         # add synthetic pose perturbation to all training data
-        if opt.data.dataset=="blender" or opt.data.dataset == "arkit" : #TODO:check
+        if opt.data.dataset in ["arkit","blender"] : #TODO:check
             pose = pose_GT
             if opt.camera.noise:
                 pose = camera.pose.compose([self.graph.pose_noise,pose])
@@ -166,7 +166,7 @@ class Model(nerf.Model):
     @torch.no_grad()
     def generate_videos_pose(self,opt):
         self.graph.eval()
-        fig = plt.figure(figsize=(10,10) if opt.data.dataset=="blender" else (16,8))
+        fig = plt.figure(figsize=(10,10) if opt.data.dataset in ["arkit","blender"] else (16,8))
         cam_path = "{}/poses".format(opt.output_path)
         os.makedirs(cam_path,exist_ok=True)
         ep_list = []
@@ -183,7 +183,7 @@ class Model(nerf.Model):
                 dict(
                     blender=util_vis.plot_save_poses_blender,
                     llff=util_vis.plot_save_poses,
-                    arkit=util_vis.plot_save_poses, #TODO : 여기가 그 블랜터랑 포즈 결과 비주얼 다른 곳
+                    arkit=util_vis.plot_save_poses_blender, #TODO : 여기가 그 블랜터랑 포즈 결과 비주얼 다른 곳
                 )[opt.data.dataset](opt,fig,pose_aligned,pose_ref=pose_ref,path=cam_path,ep=ep)
             else:
                 pose = pose.detach().cpu()
@@ -213,7 +213,7 @@ class Graph(nerf.Graph):
     def get_pose(self,opt,var,mode=None):
         if mode=="train":
             # add the pre-generated pose perturbations
-            if opt.data.dataset=="blender" or opt.data.dataset=="arkit":
+            if opt.data.dataset in ["arkit","blender"] :
                 if opt.camera.noise:
                     var.pose_noise = self.pose_noise[var.idx]
                     pose = camera.pose.compose([var.pose_noise,var.pose])
