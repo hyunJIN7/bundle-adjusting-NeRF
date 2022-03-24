@@ -81,13 +81,13 @@ class Lie():
         return w
 
     def se3_to_SE3(self,wu): # [...,3]
-        w,u = wu.split([3,3],dim=-1)
+        w,u = wu.split([3,3],dim=-1) #[n,6] -> [n,3] [n,3]
         wx = self.skew_symmetric(w)
         theta = w.norm(dim=-1)[...,None,None]
         I = torch.eye(3,device=w.device,dtype=torch.float32)
-        A = self.taylor_A(theta)
-        B = self.taylor_B(theta)
-        C = self.taylor_C(theta)
+        A = self.taylor_A(theta) ## Taylor expansion of sin(x)/x
+        B = self.taylor_B(theta) # Taylor expansion of (1-cos(x))/x**2
+        C = self.taylor_C(theta) # Taylor expansion of (x-sin(x))/x**3
         R = I+A*wx+B*wx@wx
         V = I+B*wx+C*wx@wx
         Rt = torch.cat([R,(V@u[...,None])],dim=-1)
@@ -212,7 +212,7 @@ def cam2world(X,pose):
     pose_inv = Pose().invert(pose)
     return X_hom@pose_inv.transpose(-1,-2)
 
-def angle_to_rotation_matrix(a,axis):
+def angle_to_rotation_matrix(a,axis): #TODO : 오일러  to rotation matrix
     # get the rotation matrix from Euler angle around specific axis
     roll = dict(X=1,Y=2,Z=0)[axis]
     O = torch.zeros_like(a)

@@ -10,7 +10,7 @@ import json
 import cv2
 from transforms3d.quaternions import quat2mat
 from skimage import img_as_ubyte
-np.random.seed(0)
+# np.random.seed(0) TODO : 이거 고정시키지 말자.
 
 # python run_nerf.py --expname computer
 def config_parser():
@@ -22,10 +22,17 @@ def config_parser():
                         help='input data directory')
 
     #keyframe options
-    parser.add_argument("--min_angle_keyframe", type=float, default=0.5,
+    # 0.5,0.01 : 204,104
+    parser.add_argument("--min_angle_keyframe", type=float, default=15,
                         help='minimum angle between key frames')
-    parser.add_argument("--min_distance_keyframe", type=float, default=0.01,
+    parser.add_argument("--min_distance_keyframe", type=float, default=0.3,
                         help='minimum distance between key frames')
+
+    #data
+    parser.add_argument("--data_val_ratio", type=float, default=0.1,
+                        help='ratio of sequence split for validation')
+
+
     return parser
 
 def rotx(t):
@@ -69,7 +76,7 @@ def sync_intrinsics_and_poses(cam_file, pose_file, out_file):
             [0, 0, 1]
         ])
 
-    """load camera poses"""  # ARPose.txt -> camera pose  gt
+    """load camera keyframe_poses"""  # ARPose.txt -> camera pose  gt
     assert os.path.isfile(pose_file), "camera info:{} not found".format(pose_file)
     with open(pose_file, "r") as f:
         cam_pose_lines = f.readlines()
@@ -166,7 +173,7 @@ def process_arkit_data(args,ori_size=(1920, 1440), size=(640, 480)):
     # K[1, :] /= (ori_size[1] / size[1])  #resize 전 크기가 orgin_size 이기 때문에
 
     #quat -> rot
-    all_cam_pose,sync_timestamp_anme = load_camera_pose(os.path.join(basedir, 'SyncedPoses.txt'))
+    all_cam_pose,sync_timestamp_name = load_camera_pose(os.path.join(basedir, 'SyncedPoses.txt'))
 
     """Keyframes selection"""
     all_ids = [0]
@@ -186,27 +193,44 @@ def process_arkit_data(args,ori_size=(1920, 1440), size=(640, 480)):
             all_ids.append(i)
             last_pose = cam_pose
 
-    """final select image,poses"""
-    imgs = []
-    poses = []
-    select_timestamp_name = []
+    """final select image,keyframe_poses  for train,val data"""
+    keyframe_imgs = []
+    keyframe_poses = []
+    keyframe_timestamp_name = []
     for i in all_ids:
         image_file_name = os.path.join(image_path, str(i).zfill(5) + '.jpg')
-        imgs.append(imageio.imread(image_file_name))
-        poses.append(all_cam_pose[i])
-        select_timestamp_name.append(sync_timestamp_anme[i])
-    imgs = (np.array(imgs) / 255.).astype(np.float32)
-    poses = np.array(poses).astype(np.float32)
-    select_timestamp_name = np.array(select_timestamp_name)
-    # select_timestamp_name[,1] = int(select_timestamp_name[,1])
+        keyframe_imgs.append(imageio.imread(image_file_name))
+        keyframe_poses.append(all_cam_pose[i])
+        keyframe_timestamp_name.append(sync_timestamp_name[i])
+    keyframe_imgs = (np.array(keyframe_imgs) / 255.).astype(np.float32)
+    keyframe_poses = np.array(keyframe_poses).astype(np.float32)
+    keyframe_timestamp_name = np.array(keyframe_timestamp_name)
+
 
     """train, val, test"""
-    i_split = []
-    n = poses.shape[0]  # count of image
-    train_indexs = np.linspace(0, n, (int)(n * 0.88), endpoint=False, dtype=int)
-    val_indexs = np.linspace(0, n, (int)(n * 0.45), endpoint=False, dtype=int)
-    test_indexs = np.random.choice(n, (int)(n * 0.45))
+    n = keyframe_poses.shape[0]  # count of image
+    num_val_split = (int)(n * args.data_val_ratio)
+    train_indexs = np.linspace(0, n, n, endpoint=False, dtype=int)[:-num_val_split] #np.linspace(0, n, (int)(n * 0.9), endpoint=False, dtype=int)
+    val_indexs = np.linspace(0, n, n, endpoint=False, dtype=int)[-num_val_split:]
+    #validaion  train 안겹치게 구성해야해.
+
+    test_indexs = np.random.choice(all_cam_pose.shape[0], train_indexs.shape[0]*2) #키프레임셀렉에서말고 전체 싱크 맞춘거에서 테스트 데이터 뽑아
     test_indexs.sort()
+
+
+    #test로 셀렉된 번호에 대해서 all_cam_pose,sync_timestamp_name에서 데이터 뽑아
+    """final select image,keyframe_poses for test data"""
+    test_imgs = []
+    test_poses = []
+    test_timestamp_name = []
+    for i in test_indexs:
+        image_file_name = os.path.join(image_path, str(i).zfill(5) + '.jpg')
+        test_imgs.append(imageio.imread(image_file_name))
+        test_poses.append(all_cam_pose[i])
+        test_timestamp_name.append(sync_timestamp_name[i])
+    test_imgs = (np.array(test_imgs) / 255.).astype(np.float32)
+    test_poses = np.array(test_poses).astype(np.float32)
+    test_timestamp_name = np.array(test_timestamp_name)
     print('train : {0} , val : {1} , test : {2}'.format(train_indexs.shape[0],val_indexs.shape[0],test_indexs.shape[0]))
 
 
@@ -234,25 +258,24 @@ def process_arkit_data(args,ori_size=(1920, 1440), size=(640, 480)):
 
     save_keyframe_data(basedir,'train',
                        train_indexs,
-                       imgs[train_indexs],
-                       poses[train_indexs],
-                       select_timestamp_name[train_indexs]);
+                       keyframe_imgs[train_indexs],
+                       keyframe_poses[train_indexs],
+                       keyframe_timestamp_name[train_indexs]);
 
     save_keyframe_data(basedir,'val',
                        val_indexs,
-                       imgs[val_indexs],
-                       poses[val_indexs],
-                       select_timestamp_name[val_indexs]);
-
+                       keyframe_imgs[val_indexs],
+                       keyframe_poses[val_indexs],
+                       keyframe_timestamp_name[val_indexs]);
 
     save_keyframe_data(basedir,'test',
                        test_indexs,
-                       imgs[test_indexs],
-                       poses[test_indexs],
-                       select_timestamp_name[test_indexs]);
+                       test_imgs[test_indexs],
+                       test_poses[test_indexs],
+                       test_timestamp_name[test_indexs]);
 
 # cd data 한 다음에 이 코드 실행해야하나봐 경로 이상해
-# python process_arkit_data.py --expname computer
+# python process_arkit_data.py --expname computer_debug
 # 다 실행한 이후엔 cd ../ 해주고
 if __name__ == '__main__':
     parser = config_parser()

@@ -146,7 +146,7 @@ class Model():
         self.graph.eval()
         loss_val = edict()
         loader = tqdm.tqdm(self.test_loader,desc="validating",leave=False)
-        for it,batch in enumerate(loader):
+        for it,batch in enumerate(loader): #TODO : 여기서 안넘어감... batch  dict n
             var = edict(batch)
             var = util.move_to_device(var,opt.device)
             var = self.graph.forward(opt,var,mode="val")

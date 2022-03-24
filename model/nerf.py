@@ -157,10 +157,10 @@ class Model(base.Model):
             depth_vid_fname = "{}/test_view_depth.mp4".format(opt.output_path)
             os.system("ffmpeg -y -framerate 30 -i {0}/rgb_%d.png -pix_fmt yuv420p {1} >/dev/null 2>&1".format(test_path,rgb_vid_fname))
             os.system("ffmpeg -y -framerate 30 -i {0}/depth_%d.png -pix_fmt yuv420p {1} >/dev/null 2>&1".format(test_path,depth_vid_fname))
-        else:
+        else: #TODO : 여기 blender와 arkit 비교해봐야해
             pose_pred,pose_GT = self.get_all_training_poses(opt)
             poses = pose_pred if opt.model=="barf" else pose_GT
-            if opt.model=="barf" and opt.data.dataset=="llff":
+            if opt.model=="barf" and opt.data.dataset=="llff" :
                 _,sim3 = self.prealign_cameras(opt,pose_pred,pose_GT)
                 scale = sim3.s1/sim3.s0
             else: scale = 1
@@ -198,7 +198,7 @@ class Graph(base.Graph):
             self.nerf_fine = NeRF(opt)
 
     def forward(self,opt,var,mode=None):
-        batch_size = len(var.idx)
+        batch_size = len(var.idx) #TODO:forward
         pose = self.get_pose(opt,var,mode=mode)
         # render images
         if opt.nerf.rand_rays and mode in ["train","test-optim"]:

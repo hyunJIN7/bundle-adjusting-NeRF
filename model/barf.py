@@ -27,13 +27,13 @@ class Model(nerf.Model):
             # pre-generate synthetic pose perturbation
             se3_noise = torch.randn(len(self.train_data),6,device=opt.device)*opt.camera.noise
             self.graph.pose_noise = camera.lie.se3_to_SE3(se3_noise)
-        self.graph.se3_refine = torch.nn.Embedding(len(self.train_data),6).to(opt.device)
-        torch.nn.init.zeros_(self.graph.se3_refine.weight)
+        self.graph.se3_refine = torch.nn.Embedding(len(self.train_data),6).to(opt.device) #TODO : refine되는 포즈?, (n,6) : 6개로 나타내나봐
+        torch.nn.init.zeros_(self.graph.se3_refine.weight) #(n,6) shape의 0으로 채워진 행렬
 
     def setup_optimizer(self,opt):
         super().setup_optimizer(opt)
-        optimizer = getattr(torch.optim,opt.optim.algo)
-        self.optim_pose = optimizer([dict(params=self.graph.se3_refine.parameters(),lr=opt.optim.lr_pose)])
+        optimizer = getattr(torch.optim,opt.optim.algo)  #Adam
+        self.optim_pose = optimizer([dict(params=self.graph.se3_refine.parameters(),lr=opt.optim.lr_pose)]) #TODO: optimize pose
         # set up scheduler
         if opt.optim.sched_pose:
             scheduler = getattr(torch.optim.lr_scheduler,opt.optim.sched_pose.type)
@@ -67,9 +67,9 @@ class Model(nerf.Model):
             lr = self.optim_pose.param_groups[0]["lr"]
             self.tb.add_scalar("{0}/{1}".format(split,"lr_pose"),lr,step)
         # compute pose error
-        if split=="train" and opt.data.dataset in ["blender","llff"]:
+        if split=="train" and opt.data.dataset in ["arkit","blender","llff"]:
             pose,pose_GT = self.get_all_training_poses(opt)
-            pose_aligned,_ = self.prealign_cameras(opt,pose,pose_GT)
+            pose_aligned,_ = self.prealign_cameras(opt,pose,pose_GT) #TODO:prealign_cameras 를 arkit에 해야하는가
             error = self.evaluate_camera_alignment(opt,pose_aligned,pose_GT)
             self.tb.add_scalar("{0}/error_R".format(split),error.R.mean(),step)
             self.tb.add_scalar("{0}/error_t".format(split),error.t.mean(),step)
@@ -85,16 +85,17 @@ class Model(nerf.Model):
     @torch.no_grad()
     def get_all_training_poses(self,opt):
         # get ground-truth (canonical) camera poses
-        pose_GT = self.train_data.get_all_camera_poses(opt).to(opt.device)
+        pose_GT = self.train_data.get_all_camera_poses(opt).to(opt.device)  #(3,4)
         # add synthetic pose perturbation to all training data
-        if opt.data.dataset=="blender":
+        if opt.data.dataset=="blender" or opt.data.dataset == "arkit" : #TODO:check
             pose = pose_GT
             if opt.camera.noise:
                 pose = camera.pose.compose([self.graph.pose_noise,pose])
         else: pose = self.graph.pose_eye
         # add learned pose correction to all training data
-        pose_refine = camera.lie.se3_to_SE3(self.graph.se3_refine.weight)
-        pose = camera.pose.compose([pose_refine,pose])
+        pose_refine = camera.lie.se3_to_SE3(self.graph.se3_refine.weight) #embeding
+        pose = camera.pose.compose([pose_refine,pose]) #refine_pose와 pose 사이 pose_new(x) = poseN o ... o pose2 o pose1(x) 이렇게
+        print("get_all_training_poses  pose shpae @@@@ : {}".format(pose.shape))  # TODO: shape 출력해야하나
         return pose,pose_GT
 
     @torch.no_grad()
@@ -118,7 +119,7 @@ class Model(nerf.Model):
     @torch.no_grad()
     def evaluate_camera_alignment(self,opt,pose_aligned,pose_GT):
         # measure errors in rotation and translation
-        R_aligned,t_aligned = pose_aligned.split([3,1],dim=-1)
+        R_aligned,t_aligned = pose_aligned.split([3,1],dim=-1) #TODO:shape
         R_GT,t_GT = pose_GT.split([3,1],dim=-1)
         R_error = camera.rotation_distance(R_aligned,R_GT)
         t_error = (t_aligned-t_GT)[...,0].norm(dim=-1)
@@ -169,19 +170,20 @@ class Model(nerf.Model):
         cam_path = "{}/poses".format(opt.output_path)
         os.makedirs(cam_path,exist_ok=True)
         ep_list = []
-        for ep in range(0,opt.max_iter+1,opt.freq.ckpt):
+        for ep in range(0,opt.max_iter+1,opt.freq.ckpt): # 5000 간격으로
             # load checkpoint (0 is random init)
             if ep!=0:
                 try: util.restore_checkpoint(opt,self,resume=ep)
                 except: continue
             # get the camera poses
             pose,pose_ref = self.get_all_training_poses(opt)
-            if opt.data.dataset in ["blender","llff"]:
+            if opt.data.dataset in ["arkit","blender","llff"]:
                 pose_aligned,_ = self.prealign_cameras(opt,pose,pose_ref)
                 pose_aligned,pose_ref = pose_aligned.detach().cpu(),pose_ref.detach().cpu()
                 dict(
                     blender=util_vis.plot_save_poses_blender,
                     llff=util_vis.plot_save_poses,
+                    arkit=util_vis.plot_save_poses, #TODO : 여기가 그 블랜터랑 포즈 결과 비주얼 다른 곳
                 )[opt.data.dataset](opt,fig,pose_aligned,pose_ref=pose_ref,path=cam_path,ep=ep)
             else:
                 pose = pose.detach().cpu()
@@ -211,16 +213,19 @@ class Graph(nerf.Graph):
     def get_pose(self,opt,var,mode=None):
         if mode=="train":
             # add the pre-generated pose perturbations
-            if opt.data.dataset=="blender":
+            if opt.data.dataset=="blender" or opt.data.dataset=="arkit":
                 if opt.camera.noise:
                     var.pose_noise = self.pose_noise[var.idx]
                     pose = camera.pose.compose([var.pose_noise,var.pose])
                 else: pose = var.pose
             else: pose = self.pose_eye
             # add learnable pose correction
-            var.se3_refine = self.se3_refine.weight[var.idx]
-            pose_refine = camera.lie.se3_to_SE3(var.se3_refine)
-            pose = camera.pose.compose([pose_refine,pose])
+            var.se3_refine = self.se3_refine.weight[var.idx] #Embedding(n,6)
+            pose_refine = camera.lie.se3_to_SE3(var.se3_refine) #Embedding(n,6)
+            pose = camera.pose.compose([pose_refine,pose])  #(n,3,4)
+            # print('### se3_refine : {}'.format(self.se3_refine))
+            # print('### pose_refine  shape : {}'.format(self.se3_refine))
+            # print('### pose  shape: {}'.format(pose.shape))
         elif mode in ["eval","test-optim"]:
             # align test pose to refined coordinate system (up to sim3)
             sim3 = self.sim3
