@@ -26,8 +26,11 @@ def main():
             m.generate_videos_pose(opt)
             #TODO : rgb image   --> generate_videos_synthesis
 
+        #여기다 매 이터마다 포즈랑 이미지 저장하게 뭐 만들던가 gen_video,eval_full에서 이미지랑 포즈 만드는거 참고해서
+        # m.generate_pose_image_everyiter(opt)
+
         m.restore_checkpoint(opt)
-        if opt.data.dataset in ["blender","llff","arkit","iphone"]: #TODO iphone은 테스트뷰 원래 저장안하는데 여기도 넣어볼까
+        if opt.data.dataset in ["blender","llff","arkit","iphone"]: #TODO iphone은 테스트뷰 원래 저장안하는데 여기도 넣어볼까,EasyDict에 pose refine 없다고 에러남.
             m.evaluate_full(opt)
         m.generate_videos_synthesis(opt)
 

@@ -213,7 +213,7 @@ def process_arkit_data(args,ori_size=(1920, 1440), size=(640, 480)):
     train_indexs = np.linspace(0, n, n, endpoint=False, dtype=int)[:-num_val_split] #np.linspace(0, n, (int)(n * 0.9), endpoint=False, dtype=int)
     val_indexs = np.linspace(0, n, n, endpoint=False, dtype=int)[-num_val_split:]
     #validaion  train 안겹치게 구성해야해.
-    test_indexs = np.random.choice(len(all_cam_pose), train_indexs.shape[0]*2 , replace=False) #키프레임셀렉에서말고 전체 싱크 맞춘거에서 테스트 데이터 뽑아,비복원추출
+    test_indexs = np.random.choice(len(all_cam_pose), train_indexs.shape[0] , replace=False) #키프레임셀렉에서말고 전체 싱크 맞춘거에서 테스트 데이터 뽑아,비복원추출
     test_indexs.sort()
 
 

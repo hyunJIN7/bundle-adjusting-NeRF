@@ -97,12 +97,9 @@ class Dataset(base.Dataset):
             cam_intrinsic_lines = f.readlines()
 
         cam_intrinsics = []
-        for line in cam_intrinsic_lines:
-            line_data_list = line.split(',')
-            if len(line_data_list) == 0:
-                continue
-            cam_intrinsics.append([float(i) for i in line_data_list])
-            break # check
+        line_data_list = cam_intrinsic_lines[idx].split(',')
+        cam_intrinsics.append([float(i) for i in line_data_list])
+
             # frame.txt -> cam_instrinsic
         intr = torch.tensor([
                 [cam_intrinsics[0][2], 0, cam_intrinsics[0][4]],

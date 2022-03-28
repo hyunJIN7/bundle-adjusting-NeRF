@@ -87,7 +87,7 @@ class Model(nerf.Model):
         # get ground-truth (canonical) camera poses
         pose_GT = self.train_data.get_all_camera_poses(opt).to(opt.device)  #(3,4)
         # add synthetic pose perturbation to all training data
-        if opt.data.dataset in ["arkit","blender"] : #TODO:check
+        if opt.data.dataset in ["iphone","arkit","blender"] : #TODO:check
             pose = pose_GT
             if opt.camera.noise:
                 pose = camera.pose.compose([self.graph.pose_noise,pose])
@@ -95,7 +95,7 @@ class Model(nerf.Model):
         # add learned pose correction to all training data
         pose_refine = camera.lie.se3_to_SE3(self.graph.se3_refine.weight) #embeding
         pose = camera.pose.compose([pose_refine,pose]) #refine_pose와 pose 사이 pose_new(x) = poseN o ... o pose2 o pose1(x) 이렇게
-        print("get_all_training_poses  pose shpae @@@@ : {}".format(pose.shape))  # TODO: shape 출력해야하나
+        #print("get_all_training_poses  pose shpae @@@@ : {}".format(pose.shape))  # TODO: shape 출력해야하나
         return pose,pose_GT
 
     @torch.no_grad()
@@ -165,6 +165,7 @@ class Model(nerf.Model):
 
     @torch.no_grad()
     def generate_videos_pose(self,opt):
+
         self.graph.eval()
         fig = plt.figure(figsize=(10,10) if opt.data.dataset in ["arkit","blender"] else (16,8))
         cam_path = "{}/poses".format(opt.output_path)
@@ -199,6 +200,92 @@ class Model(nerf.Model):
         os.system("ffmpeg -y -r 30 -f concat -i {0} -pix_fmt yuv420p {1} >/dev/null 2>&1".format(list_fname,cam_vid_fname))
         os.remove(list_fname)
 
+    # @torch.no_grad()
+    # def generate_pose_image_everyiter(self,opt):
+    #     ep_list = []
+    #     for ep in range(0, opt.max_iter + 1, opt.freq.ckpt):  # 5000 간격으로
+    #         # load checkpoint (0 is random init)
+    #         if ep != 0:
+    #             try:
+    #                 util.restore_checkpoint(opt, self, resume=ep)
+    #             except:
+    #                 continue
+    #         # get the camera poses
+    #         pose, pose_ref = self.get_all_training_poses(opt)
+    #         if opt.data.dataset in ["arkit", "blender", "llff"]:
+    #             pose_aligned, _ = self.prealign_cameras(opt, pose, pose_ref)
+    #             pose_aligned, pose_ref = pose_aligned.detach().cpu(), pose_ref.detach().cpu()
+    #             dict(
+    #                 blender=util_vis.plot_save_poses_blender,
+    #                 llff=util_vis.plot_save_poses,
+    #                 arkit=util_vis.plot_save_poses_blender,  # TODO : 여기가 그 블랜터랑 포즈 결과 비주얼 다른 곳
+    #             )[opt.data.dataset](opt, fig, pose_aligned, pose_ref=pose_ref, path=cam_path, ep=ep)
+    #         else:
+    #             pose = pose.detach().cpu()
+    #             util_vis.plot_save_poses(opt, fig, pose, pose_ref=None, path=cam_path, ep=ep)
+    #         ep_list.append(ep)
+    #
+    #
+    #
+    #     #eval full barf
+    #     self.graph.eval()
+    #     # evaluate rotation/translation
+    #     pose,pose_GT = self.get_all_training_poses(opt)
+    #     pose_aligned,self.graph.sim3 = self.prealign_cameras(opt,pose,pose_GT)
+    #     error = self.evaluate_camera_alignment(opt,pose_aligned,pose_GT)
+    #     print("--------------------------")
+    #     print("rot:   {:8.3f}".format(np.rad2deg(error.R.mean().cpu())))
+    #     print("trans: {:10.5f}".format(error.t.mean()))
+    #     print("--------------------------")
+    #     # dump numbers
+    #     quant_fname = "{}/quant_pose.txt".format(opt.output_path)
+    #     with open(quant_fname,"w") as file:
+    #         for i,(err_R,err_t) in enumerate(zip(error.R,error.t)):
+    #             file.write("{} {} {}\n".format(i,err_R.item(),err_t.item()))
+    #     # evaluate novel view synthesis
+    #     super().evaluate_full(opt)
+    #
+    #
+    #
+    #     #nerf full eval 여기 파트는 호출해서 분리해서 작성하던가
+    #     self.graph.eval()
+    #     loader = tqdm.tqdm(self.test_loader, desc="evaluating", leave=False)
+    #     res = []
+    #     test_path = "{}/test_view".format(opt.output_path)
+    #     os.makedirs(test_path, exist_ok=True)
+    #     for i, batch in enumerate(loader):
+    #         var = edict(batch)
+    #         var = util.move_to_device(var, opt.device)
+    #         if opt.data.dataset in ["iphone", "arkit", "blender"] and opt.optim.test_photo:
+    #             # run test-time optimization to factorize imperfection in optimized poses from view synthesis evaluation
+    #             var = self.evaluate_test_time_photometric_optim(opt, var)
+    #         var = self.graph.forward(opt, var, mode="eval")
+    #         # evaluate view synthesis
+    #         invdepth = (1 - var.depth) / var.opacity if opt.camera.ndc else 1 / (var.depth / var.opacity + eps)
+    #         rgb_map = var.rgb.view(-1, opt.H, opt.W, 3).permute(0, 3, 1, 2)  # [B,3,H,W]
+    #         invdepth_map = invdepth.view(-1, opt.H, opt.W, 1).permute(0, 3, 1, 2)  # [B,1,H,W]
+    #         psnr = -10 * self.graph.MSE_loss(rgb_map, var.image).log10().item()
+    #         ssim = pytorch_ssim.ssim(rgb_map, var.image).item()
+    #         lpips = self.lpips_loss(rgb_map * 2 - 1, var.image * 2 - 1).item()
+    #         res.append(edict(psnr=psnr, ssim=ssim, lpips=lpips))
+    #         # dump novel views
+    #         torchvision_F.to_pil_image(rgb_map.cpu()[0]).save("{}/rgb_{}.png".format(test_path, i))
+    #         torchvision_F.to_pil_image(var.image.cpu()[0]).save("{}/rgb_GT_{}.png".format(test_path, i))
+    #         torchvision_F.to_pil_image(invdepth_map.cpu()[0]).save("{}/depth_{}.png".format(test_path, i))
+    #     # show results in terminal
+    #     print("--------------------------")
+    #     print("PSNR:  {:8.2f}".format(np.mean([r.psnr for r in res])))
+    #     print("SSIM:  {:8.2f}".format(np.mean([r.ssim for r in res])))
+    #     print("LPIPS: {:8.2f}".format(np.mean([r.lpips for r in res])))
+    #     print("--------------------------")
+    #     # dump numbers to file
+    #     quant_fname = "{}/quant.txt".format(opt.output_path)
+    #     with open(quant_fname, "w") as file:
+    #         for i, r in enumerate(res):
+    #             file.write("{} {} {} {}\n".format(i, r.psnr, r.ssim, r.lpips))
+
+
+
 # ============================ computation graph for forward/backprop ============================
 
 class Graph(nerf.Graph):
@@ -208,7 +295,7 @@ class Graph(nerf.Graph):
         self.nerf = NeRF(opt)
         if opt.nerf.fine_sampling:
             self.nerf_fine = NeRF(opt)
-        self.pose_eye = torch.eye(3,4).to(opt.device) #TODO : 초기 포즈???
+        self.pose_eye = torch.eye(3,4).to(opt.device)
 
     def get_pose(self,opt,var,mode=None):
         if mode=="train":
@@ -226,6 +313,10 @@ class Graph(nerf.Graph):
             # print('### se3_refine : {}'.format(self.se3_refine))
             # print('### pose_refine  shape : {}'.format(self.se3_refine))
             # print('### pose  shape: {}'.format(pose.shape))
+
+
+
+
         elif mode in ["eval","test-optim"]:
             # align test pose to refined coordinate system (up to sim3)
             sim3 = self.sim3

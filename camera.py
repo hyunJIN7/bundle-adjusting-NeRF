@@ -207,7 +207,7 @@ def cam2img(X,cam_intr):
     return X@cam_intr.transpose(-1,-2)
 def img2cam(X,cam_intr):
     return X@cam_intr.inverse().transpose(-1,-2)
-def cam2world(X,pose):
+def cam2world(X,pose): #x 가 center ?..
     X_hom = to_hom(X)
     pose_inv = Pose().invert(pose)
     return X_hom@pose_inv.transpose(-1,-2)

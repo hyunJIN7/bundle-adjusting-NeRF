@@ -1,4 +1,10 @@
-_parent_: options/barf_llff.yaml
+_parent_: options/nerf_blender.yaml
+
+barf_c2f:                                                   # coarse-to-fine scheduling on positional encoding
+
+camera:                                                     # camera options
+    noise: 0.15                                             # synthetic perturbations on the camera poses (Blender only)
+
 
 data:                                                       # data options
     dataset: arkit                                         # dataset name

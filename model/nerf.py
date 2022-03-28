@@ -118,9 +118,9 @@ class Model(base.Model):
         for i,batch in enumerate(loader):
             var = edict(batch)
             var = util.move_to_device(var,opt.device)
-            if opt.data.dataset in ["arkit","blender"] and opt.optim.test_photo:
+            if opt.data.dataset in ["iphone","arkit","blender"] and opt.optim.test_photo:
                 # run test-time optimization to factorize imperfection in optimized poses from view synthesis evaluation
-                var = self.evaluate_test_time_photometric_optim(opt,var) #TODO 이거뭐냐
+                var = self.evaluate_test_time_photometric_optim(opt,var)
             var = self.graph.forward(opt,var,mode="eval")
             # evaluate view synthesis
             invdepth = (1-var.depth)/var.opacity if opt.camera.ndc else 1/(var.depth/var.opacity+eps)
@@ -157,7 +157,7 @@ class Model(base.Model):
             depth_vid_fname = "{}/test_view_depth.mp4".format(opt.output_path)
             os.system("ffmpeg -y -framerate 30 -i {0}/rgb_%d.png -pix_fmt yuv420p {1} >/dev/null 2>&1".format(test_path,rgb_vid_fname))
             os.system("ffmpeg -y -framerate 30 -i {0}/depth_%d.png -pix_fmt yuv420p {1} >/dev/null 2>&1".format(test_path,depth_vid_fname))
-        else: #TODO : 여기 blender와 arkit 비교해봐야해
+        else: #TODO : test data X , arbit
             pose_pred,pose_GT = self.get_all_training_poses(opt)
             poses = pose_pred if opt.model=="barf" else pose_GT
             if opt.model=="barf" and opt.data.dataset=="llff" :
@@ -166,7 +166,7 @@ class Model(base.Model):
             else: scale = 1
             # rotate novel views around the "center" camera of all poses
             idx_center = (poses-poses.mean(dim=0,keepdim=True))[...,3].norm(dim=-1).argmin()
-            pose_novel = camera.get_novel_view_poses(opt,poses[idx_center],N=60,scale=scale).to(opt.device)
+            pose_novel = camera.get_novel_view_poses(opt,poses[idx_center],N=60,scale=scale).to(opt.device)#TODO
             # render the novel views
             novel_path = "{}/novel_view".format(opt.output_path)
             os.makedirs(novel_path,exist_ok=True)
