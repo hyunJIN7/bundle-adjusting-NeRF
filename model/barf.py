@@ -67,7 +67,7 @@ class Model(nerf.Model):
             lr = self.optim_pose.param_groups[0]["lr"]
             self.tb.add_scalar("{0}/{1}".format(split,"lr_pose"),lr,step)
         # compute pose error
-        if split=="train" and opt.data.dataset in ["arkit","blender","llff"]:
+        if split=="train" and opt.data.dataset in ["iphone","arkit","blender","llff"]:
             pose,pose_GT = self.get_all_training_poses(opt)
             pose_aligned,_ = self.prealign_cameras(opt,pose,pose_GT) #TODO:prealign_cameras 를 arkit에 해야하는가
             error = self.evaluate_camera_alignment(opt,pose_aligned,pose_GT)
@@ -184,7 +184,7 @@ class Model(nerf.Model):
                 dict(
                     blender=util_vis.plot_save_poses_blender,
                     llff=util_vis.plot_save_poses,
-                    arkit=util_vis.plot_save_poses_blender, #TODO : 여기가 그 블랜터랑 포즈 결과 비주얼 다른 곳
+                    arkit=util_vis.plot_save_poses, #TODO : 여기가 그 블랜터랑 포즈 결과 비주얼 다른 곳
                 )[opt.data.dataset](opt,fig,pose_aligned,pose_ref=pose_ref,path=cam_path,ep=ep)
             else:
                 pose = pose.detach().cpu()
@@ -313,9 +313,6 @@ class Graph(nerf.Graph):
             # print('### se3_refine : {}'.format(self.se3_refine))
             # print('### pose_refine  shape : {}'.format(self.se3_refine))
             # print('### pose  shape: {}'.format(pose.shape))
-
-
-
 
         elif mode in ["eval","test-optim"]:
             # align test pose to refined coordinate system (up to sim3)

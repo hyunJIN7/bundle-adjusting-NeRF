@@ -21,7 +21,7 @@ class Dataset(base.Dataset):
         super().__init__(opt,split)
         self.root = opt.data.root or "data/iphone"
         self.path = "{}/{}".format(self.root,opt.data.scene)
-        self.path_image = "{}/train_val_images".format(self.path) if split != "test" else "{}/test".format(
+        self.path_image = "{}/iphone_train_val_images".format(self.path) if split != "test" else "{}/test".format(
             self.path)  # TODO : file name
         self.list = sorted(os.listdir(self.path_image), key=lambda f: int(f.split(".")[0]))
         if split == "test" :
