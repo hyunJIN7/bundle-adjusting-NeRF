@@ -219,6 +219,7 @@ class Model(nerf.Model):
 
     @torch.no_grad()
     def evaluate_ckt(self, opt):
+        log.info("evaluate ckpt pose...")
         self.graph.eval()
         # 매 이터레이션마다 train pose의 ATE 평균값 계산 후 평균내서 텍스트 파일로
         #
@@ -231,7 +232,7 @@ class Model(nerf.Model):
                 except:
                     continue
             # evaluate rotation/translation
-            if opt.data.dataset in ["iphone"]:
+            if opt.data.dataset in ["iphone"]: #TODO: 나중에 optitrack 값 GT 로 할때 여기서 따로 로드 해주자
                 pose, pose_GT = self.get_gt_training_poses_iphone_for_eval(opt)
             else :
                 pose, pose_GT = self.get_all_training_poses(opt)
@@ -243,7 +244,7 @@ class Model(nerf.Model):
 
         ckpt_ate_fname = "{}/ckpt_quant_pose.txt".format(opt.output_path)
         with open(ckpt_ate_fname, "w") as file:
-            for list in enumerate(pose_err_list):
+            for i,list in enumerate(pose_err_list):
                 file.write("{} {} {}\n".format(list.ep, list.rot, list.trans))
         # nerf.py의 evla_everyiter로 접근
         super().evaluate_ckt(opt)

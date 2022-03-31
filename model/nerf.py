@@ -148,6 +148,7 @@ class Model(base.Model):
 
     @torch.no_grad()
     def evaluate_ckt(self, opt, eps=1e-10):
+        log.info("evaluate ckpt image...")
         # 해당 ckpt의 모델에 대해서 해야하는데 몰,겠다.
         # 매 이터레이션마다 현재 모델에서 이미지 result 이미지폴더 & PSNR,SSIM,LPIPS 계산해서  txt
         # test pose에 대해서? 전체는 너무 많고 , 2개? 전체 평균이 제일 좋긴해
@@ -155,6 +156,7 @@ class Model(base.Model):
 
         loader = tqdm.tqdm(self.test_loader, desc="evaluating", leave=False)
         ckpt_image_path = "{}/ckpt_images".format(opt.output_path)
+        if os.path.exists(ckpt_image_path): return # 이미 했으면 그냥 리턴
         os.makedirs(ckpt_image_path, exist_ok=True)
 
         res_all_ep = []
@@ -181,13 +183,12 @@ class Model(base.Model):
                 ssim = pytorch_ssim.ssim(rgb_map, var.image).item()
                 lpips = self.lpips_loss(rgb_map * 2 - 1, var.image * 2 - 1).item()
                 res.append(edict(psnr=psnr, ssim=ssim, lpips=lpips))
-                # dump novel views
-                torchvision_F.to_pil_image(rgb_map.cpu()[0]).save("{}/{}_rgb_{}.png".format(ep, ckpt_image_path, i))
-                torchvision_F.to_pil_image(var.image.cpu()[0]).save(
-                    "{}/{}_rgb_GT_{}.png".format(ep, ckpt_image_path, i))
-                torchvision_F.to_pil_image(invdepth_map.cpu()[0]).save(
-                    "{}/{}_depth_{}.png".format(ep, ckpt_image_path, i))
 
+                # dump novel views
+                torchvision_F.to_pil_image(rgb_map.cpu()[0]).save("{}/rgb_{}ckpt_{}.png".format(ckpt_image_path, ep, i))
+                torchvision_F.to_pil_image(invdepth_map.cpu()[0]).save("{}/depth_{}ckpt_{}.png".format(ckpt_image_path, ep, i))
+                if ep == opt.freq.ckpt: #GT는 같은 이미지니까 한번만 저장
+                    torchvision_F.to_pil_image(var.image.cpu()[0]).save("{}/rgb_GT_{}ckpt_{}.png".format(ckpt_image_path, ep, i))  # GT는 한번만 해도 될듯
                 break  # TODO : 일단 train 첫번째 이미지만
 
             psnr = np.mean([r.psnr for r in res])
@@ -197,7 +198,7 @@ class Model(base.Model):
 
         ckpt_quant_fname = "{}/ckpt_quant.txt".format(opt.output_path)
         with open(ckpt_quant_fname, "w") as file:
-            for list in enumerate(res_all_ep):
+            for i,list in enumerate(res_all_ep):
                 file.write("{} {} {} {}\n".format(list.ep, list.psnr, list.ssim, list.lpips))
 
 
@@ -223,7 +224,7 @@ class Model(base.Model):
             else: scale = 1
             # rotate novel views around the "center" camera of all poses
             idx_center = (poses-poses.mean(dim=0,keepdim=True))[...,3].norm(dim=-1).argmin()
-            pose_novel = camera.get_novel_view_poses(opt,poses[idx_center],N=60,scale=scale).to(opt.device)#TODO
+            pose_novel = camera.get_novel_view_poses(opt,poses[idx_center],N=30,scale=scale).to(opt.device)#TODO
             # render the novel views
             novel_path = "{}/novel_view".format(opt.output_path)
             os.makedirs(novel_path,exist_ok=True)

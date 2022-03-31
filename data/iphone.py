@@ -23,7 +23,7 @@ class Dataset(base.Dataset):
         self.path = "{}/{}".format(self.root,opt.data.scene)
         self.path_image = "{}/iphone_train_val_images".format(self.path) if split != "test" else "{}/test".format(self.path)
         self.list = sorted(os.listdir(self.path_image), key=lambda f: int(f.split(".")[0]))
-        pose_fname = 'transforms_iphone.txt'  if split != "test" else pose_fname = "{}/transforms_{}.txt".format(self.path, split)
+        pose_fname = "{}/transforms_iphone.txt".format(self.path) if split != "test" else "{}/transforms_{}.txt".format(self.path, split)
         pose_file = os.path.join('./', pose_fname)
         assert os.path.isfile(pose_file), "pose info:{} not found".format(pose_file)
         with open(pose_file, "r") as f:  # frame.txt 읽어서
