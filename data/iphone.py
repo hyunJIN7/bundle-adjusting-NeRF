@@ -21,34 +21,30 @@ class Dataset(base.Dataset):
         super().__init__(opt,split)
         self.root = opt.data.root or "data/iphone"
         self.path = "{}/{}".format(self.root,opt.data.scene)
-        self.path_image = "{}/iphone_train_val_images".format(self.path) if split != "test" else "{}/test".format(
-            self.path)  # TODO : file name
+        self.path_image = "{}/iphone_train_val_images".format(self.path) if split != "test" else "{}/test".format(self.path)
         self.list = sorted(os.listdir(self.path_image), key=lambda f: int(f.split(".")[0]))
-        if split == "test" :
-            pose_fname = "{}/transforms_{}.txt".format(self.path, split)
-            pose_file = os.path.join('./', pose_fname)
-            assert os.path.isfile(pose_file), "pose info:{} not found".format(pose_file)
-            with open(pose_file, "r") as f:  # frame.txt 읽어서
-                cam_frame_lines = f.readlines()
-            cam_pose = []  # r1x y z tx r2x y z ty r3x y z tz
-            self.frames = []  # timestamp imagenum r1x y z tx r2x y z ty r3x y z tz
-            for line in cam_frame_lines:
-                line_data_list = line.split(' ')
-                if len(line_data_list) == 0:
-                    continue
-                self.frames.append(line_data_list)
-                pose_raw = []
-                # pose_raw.append([float(i) for i in line_data_list[2:]]) # 이거 안해주면 아래 tensor로 바꾸는 부분에서 에러남
-                pose_raw = np.reshape(line_data_list[2:], (3, 4))
-                cam_pose.append(pose_raw)
-            cam_pose = np.array(cam_pose, dtype=float)
-            self.cam_pose = cam_pose
+        pose_fname = 'transforms_iphone.txt'  if split != "test" else pose_fname = "{}/transforms_{}.txt".format(self.path, split)
+        pose_file = os.path.join('./', pose_fname)
+        assert os.path.isfile(pose_file), "pose info:{} not found".format(pose_file)
+        with open(pose_file, "r") as f:  # frame.txt 읽어서
+            cam_frame_lines = f.readlines()
+        cam_pose = []  # r1x y z tx r2x y z ty r3x y z tz
+        self.frames = []  # timestamp imagenum r1x y z tx r2x y z ty r3x y z tz
+        for line in cam_frame_lines:
+            line_data_list = line.split(' ')
+            if len(line_data_list) == 0:
+                continue
+            self.frames.append(line_data_list)
+            pose_raw = np.reshape(line_data_list[2:], (3, 4))
+            cam_pose.append(pose_raw)
+        cam_pose = np.array(cam_pose, dtype=float)
+        self.cam_pose = cam_pose
 
-        else:#train,val
+        if split != "test" : #train,val
             # manually split train/val subsets
             num_val_split = int(len(self) * opt.data.val_ratio)  # len * 0.1
-            self.list = self.list[:-num_val_split] if split == "train" else self.list[
-                                                                            -num_val_split:]  # 전체에서 0.9 : 0.1 = train : test 비율
+            self.list = self.list[:-num_val_split] if split == "train" else self.list[-num_val_split:]  # 전체에서 0.9 : 0.1 = train : test 비율
+            self.cam_pose = self.cam_pose[:-num_val_split] if split == "train" else self.cam_pose[-num_val_split:]
 
         if subset: self.list = self.list[:subset]
         # preload dataset
@@ -61,11 +57,17 @@ class Dataset(base.Dataset):
         # pre-iterate through all samples and group together
         self.all = torch.utils.data._utils.collate.default_collate([s for s in self])
 
-    def get_all_camera_poses(self,opt): #data 로드할때 여기 접근 
-        pose = camera.pose(t=torch.zeros(len(self),3))  # TODO :Camera 초기 포즈
+    def get_all_camera_poses(self,opt): #data 로드할때 여기 접근
         if self.split == 'test':
             pose_raw_all = [torch.tensor(f, dtype=torch.float32) for f in self.cam_pose]
             pose = torch.stack([p for p in pose_raw_all], dim=0)
+        else : pose = camera.pose(t=torch.zeros(len(self),3))  # TODO :Camera 초기 포즈
+        return pose
+
+    def get_GT_camera_poses_iphone(self, opt):
+        #여기 iphone pose 평가할때 train gt 데이터 로드 위해
+        pose_raw_all = [torch.tensor(f, dtype=torch.float32) for f in self.cam_pose]
+        pose = torch.stack([p for p in pose_raw_all], dim=0)
         return pose
 
     def __getitem__(self,idx):

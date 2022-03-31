@@ -39,10 +39,9 @@ class Dataset(base.Dataset):
         self.all = torch.utils.data._utils.collate.default_collate([s for s in self])
 
     def get_all_camera_poses(self,opt):
+        # 여기가 GT
         pose_raw_all = [torch.tensor(f["transform_matrix"],dtype=torch.float32) for f in self.list]
         pose_canon_all = torch.stack([self.parse_raw_camera(opt,p) for p in pose_raw_all],dim=0)
-
-        #TODO:check 여기를 하는게 아니라 다른 곳을 I로 만들어야해
         return pose_canon_all
 
     def __getitem__(self,idx):

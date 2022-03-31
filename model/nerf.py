@@ -147,6 +147,62 @@ class Model(base.Model):
                 file.write("{} {} {} {}\n".format(i,r.psnr,r.ssim,r.lpips))
 
     @torch.no_grad()
+    def evaluate_ckt(self, opt, eps=1e-10):
+        # 해당 ckpt의 모델에 대해서 해야하는데 몰,겠다.
+        # 매 이터레이션마다 현재 모델에서 이미지 result 이미지폴더 & PSNR,SSIM,LPIPS 계산해서  txt
+        # test pose에 대해서? 전체는 너무 많고 , 2개? 전체 평균이 제일 좋긴해
+        self.graph.eval()
+
+        loader = tqdm.tqdm(self.test_loader, desc="evaluating", leave=False)
+        ckpt_image_path = "{}/ckpt_images".format(opt.output_path)
+        os.makedirs(ckpt_image_path, exist_ok=True)
+
+        res_all_ep = []
+        for ep in range(0, opt.max_iter + 1, opt.freq.ckpt):  # 5000 간격으로
+            # load checkpoint (0 is random init)
+            if ep != 0:
+                try:
+                    util.restore_checkpoint(opt, self, resume=ep)  # 여기가 그파트같은데 해당 체크포인트의 리스토어
+                except:
+                    continue
+            res = []
+            for i, batch in enumerate(loader):
+                var = edict(batch)
+                var = util.move_to_device(var, opt.device)
+                if opt.data.dataset in ["iphone", "arkit", "blender"] and opt.optim.test_photo:
+                    # run test-time optimization to factorize imperfection in optimized poses from view synthesis evaluation
+                    var = self.evaluate_test_time_photometric_optim(opt, var)
+                var = self.graph.forward(opt, var, mode="eval")
+                # evaluate view synthesis
+                invdepth = (1 - var.depth) / var.opacity if opt.camera.ndc else 1 / (var.depth / var.opacity + eps)
+                rgb_map = var.rgb.view(-1, opt.H, opt.W, 3).permute(0, 3, 1, 2)  # [B,3,H,W]
+                invdepth_map = invdepth.view(-1, opt.H, opt.W, 1).permute(0, 3, 1, 2)  # [B,1,H,W]
+                psnr = -10 * self.graph.MSE_loss(rgb_map, var.image).log10().item()
+                ssim = pytorch_ssim.ssim(rgb_map, var.image).item()
+                lpips = self.lpips_loss(rgb_map * 2 - 1, var.image * 2 - 1).item()
+                res.append(edict(psnr=psnr, ssim=ssim, lpips=lpips))
+                # dump novel views
+                torchvision_F.to_pil_image(rgb_map.cpu()[0]).save("{}/{}_rgb_{}.png".format(ep, ckpt_image_path, i))
+                torchvision_F.to_pil_image(var.image.cpu()[0]).save(
+                    "{}/{}_rgb_GT_{}.png".format(ep, ckpt_image_path, i))
+                torchvision_F.to_pil_image(invdepth_map.cpu()[0]).save(
+                    "{}/{}_depth_{}.png".format(ep, ckpt_image_path, i))
+
+                break  # TODO : 일단 train 첫번째 이미지만
+
+            psnr = np.mean([r.psnr for r in res])
+            ssim = np.mean([r.ssim for r in res])
+            lpips = np.mean([r.lpips for r in res])
+            res_all_ep.append(edict(ep=ep, psnr=psnr, ssim=ssim, lpips=lpips))
+
+        ckpt_quant_fname = "{}/ckpt_quant.txt".format(opt.output_path)
+        with open(ckpt_quant_fname, "w") as file:
+            for list in enumerate(res_all_ep):
+                file.write("{} {} {} {}\n".format(list.ep, list.psnr, list.ssim, list.lpips))
+
+
+
+    @torch.no_grad()
     def generate_videos_synthesis(self,opt,eps=1e-10):
         self.graph.eval()
         if opt.data.dataset in ["iphone","arkit","blender"] :

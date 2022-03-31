@@ -34,16 +34,14 @@ class Dataset(base.Dataset):
             if len(line_data_list) == 0:
                 continue
             self.frames.append(line_data_list)
-            pose_raw = []
-            # pose_raw.append([float(i) for i in line_data_list[2:]]) # 이거 안해주면 아래 tensor로 바꾸는 부분에서 에러남
             pose_raw = np.reshape(line_data_list[2:] ,(3,4))
             cam_pose.append(pose_raw)
         cam_pose =  np.array(cam_pose,dtype=float)
-        self.list = cam_pose   #이걸해야  self len 문제 발생 안함.
+        self.list = cam_pose
         #self.focal = 0.5*self.raw_W/np.tan(0.5*self.meta["camera_angle_x"])
-        #만약 focal error 나면 그  intri 값에서 가져오던가
 
-        if subset: self.list = self.list[:subset]
+
+        if subset: self.list = self.list[:subset] #train,val
         # preload dataset
         if opt.data.preload:
             self.images = self.preload_threading(opt,self.get_image)

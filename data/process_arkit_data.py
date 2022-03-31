@@ -23,9 +23,9 @@ def config_parser():
 
     #keyframe options
     # 0.5,0.01 : 204,104
-    parser.add_argument("--min_angle_keyframe", type=float, default=15,
+    parser.add_argument("--min_angle_keyframe", type=float, default=10,
                         help='minimum angle between key frames')
-    parser.add_argument("--min_distance_keyframe", type=float, default=0.1,
+    parser.add_argument("--min_distance_keyframe", type=float, default=0.2,
                         help='minimum distance between key frames')
 
     #data
@@ -238,7 +238,8 @@ def process_arkit_data(args,ori_size=(1920, 1440), size=(640, 480)):
     iphone_image_dir = os.path.join(basedir, 'iphone_train_val_images')
     if not os.path.exists(iphone_image_dir):
         os.mkdir(iphone_image_dir)
-
+    iphone_pose_fanme = os.path.join(basedir , 'transforms_iphone.txt')
+    iphone_poses = []
 
     # select pose,image 파일 저장
     def save_keyframe_data(dir, opt='train', index=[] ,images=[], pose=[],all_cam_timestamp_name_pose=[]):
@@ -262,6 +263,8 @@ def process_arkit_data(args,ori_size=(1920, 1440), size=(640, 480)):
                     line.append(str(pose[i][j][k]))
             #line =np.concatenate((pose[i][0,:] ,pose[i][1,:] , pose[i][2,:]) , axis=0  )        #pose[i][0,:3] + pose[i][1,:3] + pose[i][2,:3] \
             lines.append(' '.join(line) + '\n') # (3x4)shape이 row 한줄로 이어 붙임.
+            if opt != 'test': # for iphone
+                iphone_poses.append(' '.join(line) + '\n')
         with open(pose_file, 'w') as f:
             f.writelines(lines)
 
@@ -283,6 +286,9 @@ def process_arkit_data(args,ori_size=(1920, 1440), size=(640, 480)):
                        test_poses,
                        test_timestamp_name);
 
+    #for transforms_iphone.txt
+    with open(iphone_pose_fanme, 'w') as f:
+        f.writelines(iphone_poses)
 
 # cd data 한 다음에 이 코드 실행해야하나봐 경로 이상해
 # python process_arkit_data.py --expname lounge01
