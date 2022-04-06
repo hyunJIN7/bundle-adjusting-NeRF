@@ -55,6 +55,13 @@ For convenience, you can download them with the following script: (under this re
   You should modify `get_image()` to read each image sample and set the raw image sizes (`self.raw_H`, `self.raw_W`) and focal length (`self.focal`) according to your camera specs.  
   You may ignore the camera poses as they are assumed unknown in this case, which we simply set to zero vectors.
 
+
+#### BARF DATA
+ios_logger frame [right,up,backward]
+각 데이터.py 하단에 parse_raw_camera() 거치면 [right,down,forward]로. 
+BARF 가 원하는 the coordinate system of this function output would be [right, up, backwards]
+![KakaoTalk_20220406_111550975](https://user-images.githubusercontent.com/35680342/161882313-513b9abc-22f8-4c8b-a300-c8959cccff91.jpg)
+
 --------------------------------------
 
 ### Running the code
