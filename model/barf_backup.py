@@ -17,6 +17,7 @@
 # from util import log,debug
 # from . import nerf
 # import camera
+#
 # # ============================ main engine for training and evaluation ============================
 #
 # class Model(nerf.Model):
@@ -203,7 +204,7 @@
 #                 dict(
 #                     blender=util_vis.plot_save_poses_blender,
 #                     llff=util_vis.plot_save_poses,
-#                     arkit=util_vis.plot_save_poses_blender, #TODO : 여기가 그 블랜터랑 포즈 결과 비주얼 다른 곳
+#                     arkit=util_vis.plot_save_poses, #TODO : 여기가 그 블랜터랑 포즈 결과 비주얼 다른 곳
 #                 )[opt.data.dataset](opt,fig,pose_aligned,pose_ref=pose_ref,path=cam_path,ep=ep)
 #             else:
 #                 pose = pose.detach().cpu()
@@ -222,6 +223,7 @@
 #
 #     @torch.no_grad()
 #     def evaluate_ckt(self, opt):
+#         log.info("evaluate ckpt pose...")
 #         self.graph.eval()
 #         # 매 이터레이션마다 train pose의 ATE 평균값 계산 후 평균내서 텍스트 파일로
 #         #

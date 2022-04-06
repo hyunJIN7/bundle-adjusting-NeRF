@@ -60,14 +60,16 @@ class Dataset(base.Dataset):
     def get_all_camera_poses(self,opt): #data 로드할때 여기 접근
         if self.split == 'test':
             pose_raw_all = [torch.tensor(f, dtype=torch.float32) for f in self.cam_pose]
-            pose = torch.stack([p for p in pose_raw_all], dim=0)
-        else : pose = camera.pose(t=torch.zeros(len(self),3))  # TODO :Camera 초기 포즈
+            pose = torch.stack([self.parse_raw_camera(opt, p) for p in pose_raw_all], dim=0)
+
+        else :
+            pose = camera.pose(t=torch.zeros(len(self),3))  # TODO :Camera 초기 포즈
         return pose
 
     def get_GT_camera_poses_iphone(self, opt):
         #여기 iphone pose 평가할때 train gt 데이터 로드 위해
         pose_raw_all = [torch.tensor(f, dtype=torch.float32) for f in self.cam_pose]
-        pose = torch.stack([p for p in pose_raw_all], dim=0)
+        pose = torch.stack([self.parse_raw_camera(opt, p) for p in pose_raw_all], dim=0) #torch.stack([p for p in pose_raw_all], dim=0)
         return pose
 
     def __getitem__(self,idx):
@@ -119,5 +121,14 @@ class Dataset(base.Dataset):
         #                      [0,0,1]]).float()
         pose = camera.pose(t=torch.zeros(3))
         if self.split == 'test':
-            pose = torch.tensor(self.cam_pose[idx],dtype=torch.float32)
+            pose_raw = torch.tensor(self.cam_pose[idx],dtype=torch.float32)
+            pose = self.parse_raw_camera(opt, pose_raw)
         return intr,pose
+
+
+    # [right, forward, up]
+    def parse_raw_camera(self,opt,pose_raw):  #애초에 저장시킨 pose를 축 뒤집고 해놓으면 여기 처리할 필요 없지 않을까? 단 gt도 여기 기준 맞춰야하는건가...
+        pose_flip = camera.pose(R=torch.diag(torch.tensor([1,-1,-1])))
+        pose = camera.pose.compose([pose_flip,pose_raw[:3]])
+        pose = camera.pose.invert(pose)
+        return pose

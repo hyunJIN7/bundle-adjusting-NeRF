@@ -14,6 +14,13 @@ from . import base
 import camera
 from util import log,debug
 
+"""
+[right,up,back]
+process_arkit_data_frame2 거친후 
+[right,forward,up]
+의 인풋 로드 
+"""
+
 class Dataset(base.Dataset):
 
     def __init__(self,opt,split="train",subset=None):
@@ -40,6 +47,7 @@ class Dataset(base.Dataset):
         self.list = cam_pose
         #self.focal = 0.5*self.raw_W/np.tan(0.5*self.meta["camera_angle_x"])
 
+
         if subset: self.list = self.list[:subset] #train,val
         # preload dataset
         if opt.data.preload:
@@ -52,9 +60,9 @@ class Dataset(base.Dataset):
         self.all = torch.utils.data._utils.collate.default_collate([s for s in self])
 
     def get_all_camera_poses(self,opt):
-        pose_raw_all = [torch.tensor(f ,dtype=torch.float32) for f in self.list] # """list : campose 의미"""
-        #pose_canon_all = torch.stack([p for p in pose_raw_all],dim=0)
-        pose_canon_all = torch.stack([self.parse_raw_camera(opt, p) for p in pose_raw_all], dim=0)
+        # pose_raw_all = [torch.tensor(f["transform_matrix"],dtype=torch.float32) for f in self.list]
+        pose_raw_all = [torch.tensor(f ,dtype=torch.float32) for f in self.list] # """list ->campose 의미"""
+        pose_canon_all = torch.stack([p for p in pose_raw_all],dim=0)
         return pose_canon_all
 
     def __getitem__(self,idx):
@@ -85,7 +93,9 @@ class Dataset(base.Dataset):
     #     return rgb
 
     def get_camera(self,opt,idx):
+
         #Load camera intrinsics  # frane.txt -> camera intrinsics
+        #TODO: 경로체크 root 자체에서 실행하면 지금 아래 이렇게 하는게 맞을거야  ../ 아니라
         intrin_file = os.path.join(os.path.abspath('./'), self.path,'Frames.txt')
         assert os.path.isfile(intrin_file), "camera info:{} not found".format(intrin_file)
         with open(intrin_file, "r") as f:  # frame.txt 읽어서
@@ -94,9 +104,8 @@ class Dataset(base.Dataset):
         cam_intrinsics = []
         line_data_list = cam_intrinsic_lines[idx].split(',')
         cam_intrinsics.append([float(i) for i in line_data_list])
-        # intr = torch.tensor([[self.focal, 0, self.raw_W / 2],
-        #                      [0, self.focal, self.raw_H / 2],
-        #                      [0, 0, 1]]).float()
+
+            # frame.txt -> cam_instrinsic
         intr = torch.tensor([
                 [cam_intrinsics[0][2], 0, cam_intrinsics[0][4]],
                 [0, cam_intrinsics[0][3], cam_intrinsics[0][5]],
@@ -108,13 +117,18 @@ class Dataset(base.Dataset):
         intr[0,:] /= (ori_size[0] / size[0])
         intr[1, :] /= (ori_size[1] / size[1])  #resize 전 크기가 orgin_size 이기 때문에
 
-        pose_raw = torch.tensor(self.list[idx],dtype=torch.float32)
-        pose = self.parse_raw_camera(opt,pose_raw)
+        # intr = torch.tensor([[self.focal, 0, self.raw_W / 2],
+        #                      [0, self.focal, self.raw_H / 2],
+        #                      [0, 0, 1]]).float()
+        pose = torch.tensor(self.list[idx],dtype=torch.float32)
+        """
+        3x4로 """
+        #pose = self.parse_raw_camera(opt,pose_raw)
         return intr,pose
 
-    # [right, forward, up]
-    def parse_raw_camera(self,opt,pose_raw):  #애초에 저장시킨 pose를 축 뒤집고 해놓으면 여기 처리할 필요 없지 않을까? 단 gt도 여기 기준 맞춰야하는건가...
-        pose_flip = camera.pose(R=torch.diag(torch.tensor([1,-1,-1])))
-        pose = camera.pose.compose([pose_flip,pose_raw[:3]])
-        pose = camera.pose.invert(pose)
-        return pose
+#TODO:여기 하단은 원래 아이폰 코드로 해야하나 프레임이 뭐지
+    # def parse_raw_camera(self,opt,pose_raw):  #애초에 저장시킨 pose를 축 뒤집고 해놓으면 여기 처리할 필요 없지 않을까? 단 gt도 여기 기준 맞춰야하는건가...
+    #     pose_flip = camera.pose(R=torch.diag(torch.tensor([1,-1,-1])))
+    #     pose = camera.pose.compose([pose_flip,pose_raw[:3]])
+    #     pose = camera.pose.invert(pose)
+    #     return pose

@@ -14,7 +14,8 @@ from skimage import img_as_ubyte
 
 """
 [right,up,back]
-원본대로 로드 후 키프레임 셀랙만  
+process_arkit_data_frame2 거친후 
+[right,forward,up]
 
 """
 
@@ -126,8 +127,7 @@ def load_camera_pose(cam_pose_dir): # SyncedPose.txt
         raise FileNotFoundError("Given camera pose dir:{} not found"
                                 .format(cam_pose_dir))
 
-    pose = []         #[right,forward,up]
-    pose_raw = [] # [right,up,back]
+    pose = []
     timestamp_name = []
     def process(line_data_list):   #syncedpose.txt  : timestamp imagenum(string) tx ty tz(m) qx qy qz qw
         line_data = np.array(line_data_list, dtype=float)
@@ -137,13 +137,7 @@ def load_camera_pose(cam_pose_dir): # SyncedPose.txt
         quat = line_data[5:]
         rot_mat = quat2mat(np.append(quat[-1], quat[:3]).tolist())
                             # 여기선 (w,x,y,z) 순 인듯
-        trans_mat = np.zeros([3, 4])
-        trans_mat[:3, :3] = rot_mat
-        trans_mat[:3, 3] = trans
-        trans_mat = np.vstack((trans_mat, [0, 0, 0, 1]))
-        pose_raw.append(trans_mat)
-
-        #[right,forward,up]
+        #TODO :check
         rot_mat = rot_mat.dot(np.array([  #axis flip..?
             [1, 0, 0],
             [0, -1, 0],
@@ -165,7 +159,7 @@ def load_camera_pose(cam_pose_dir): # SyncedPose.txt
             continue
         process(line_data_list)
 
-    return pose_raw,pose,timestamp_name
+    return pose,timestamp_name
 
 
 def process_arkit_data(args,ori_size=(1920, 1440), size=(640, 480)):
@@ -186,7 +180,7 @@ def process_arkit_data(args,ori_size=(1920, 1440), size=(640, 480)):
     # K[1, :] /= (ori_size[1] / size[1])  #resize 전 크기가 orgin_size 이기 때문에
 
     #quat -> rot
-    all_raw_cam_pose,all_cam_pose,sync_timestamp_name = load_camera_pose(os.path.join(basedir, 'SyncedPoses.txt'))
+    all_cam_pose,sync_timestamp_name = load_camera_pose(os.path.join(basedir, 'SyncedPoses.txt'))
 
     """Keyframes selection"""
     all_ids = [0]
@@ -213,7 +207,7 @@ def process_arkit_data(args,ori_size=(1920, 1440), size=(640, 480)):
     for i in all_ids:
         image_file_name = os.path.join(image_path, str(i).zfill(5) + '.jpg')
         keyframe_imgs.append(imageio.imread(image_file_name))
-        keyframe_poses.append(all_raw_cam_pose[i])
+        keyframe_poses.append(all_cam_pose[i])
         keyframe_timestamp_name.append(sync_timestamp_name[i])
     keyframe_imgs = (np.array(keyframe_imgs) / 255.).astype(np.float32)
     keyframe_poses = np.array(keyframe_poses).astype(np.float32)
@@ -225,13 +219,13 @@ def process_arkit_data(args,ori_size=(1920, 1440), size=(640, 480)):
     num_val_split = (int)(n * args.data_val_ratio)
     train_indexs = np.linspace(0, n, n, endpoint=False, dtype=int)[:-num_val_split] #np.linspace(0, n, (int)(n * 0.9), endpoint=False, dtype=int)
     val_indexs = np.linspace(0, n, n, endpoint=False, dtype=int)[-num_val_split:]
-    test_indexs = np.random.choice(len(all_raw_cam_pose) , int(n*0.25), replace=False) #키프레임셀렉에서말고 전체 싱크 맞춘거에서 테스트 데이터 뽑아,비복원추출
+    test_indexs = np.random.choice(len(all_cam_pose) , int(n*0.25), replace=False) #키프레임셀렉에서말고 전체 싱크 맞춘거에서 테스트 데이터 뽑아,비복원추출
     test_indexs.sort()
     iphone_train_val = np.concatenate((train_indexs,val_indexs))
     iphone_train_val.sort()
     # print(iphone_train_val)
 
-    #test로 셀렉된 번호에 대해서 all_raw_cam_pose,sync_timestamp_name에서 데이터 뽑아
+    #test로 셀렉된 번호에 대해서 all_cam_pose,sync_timestamp_name에서 데이터 뽑아
     """final select image,keyframe_poses for test data"""
     test_imgs = []
     test_poses = []
@@ -239,7 +233,7 @@ def process_arkit_data(args,ori_size=(1920, 1440), size=(640, 480)):
     for i in test_indexs:
         image_file_name = os.path.join(image_path, str(i).zfill(5) + '.jpg')
         test_imgs.append(imageio.imread(image_file_name))
-        test_poses.append(all_raw_cam_pose[i])
+        test_poses.append(all_cam_pose[i])
         test_timestamp_name.append(sync_timestamp_name[i])
     test_imgs = (np.array(test_imgs) / 255.).astype(np.float32)
     test_poses = np.array(test_poses).astype(np.float32)

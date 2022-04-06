@@ -146,19 +146,16 @@ class Model(base.Model):
             for i,r in enumerate(res):
                 file.write("{} {} {} {}\n".format(i,r.psnr,r.ssim,r.lpips))
 
+
     @torch.no_grad()
     def evaluate_ckt(self, opt, eps=1e-10):
         log.info("evaluate ckpt image...")
-        # 해당 ckpt의 모델에 대해서 해야하는데 몰,겠다.
-        # 매 이터레이션마다 현재 모델에서 이미지 result 이미지폴더 & PSNR,SSIM,LPIPS 계산해서  txt
-        # test pose에 대해서? 전체는 너무 많고 , 2개? 전체 평균이 제일 좋긴해
         self.graph.eval()
 
-        loader = tqdm.tqdm(self.test_loader, desc="evaluating", leave=False)
+        loader = tqdm.tqdm(self.test_loader, desc="evaluating", leave=False) # for test pose
         ckpt_image_path = "{}/ckpt_images".format(opt.output_path)
         if os.path.exists(ckpt_image_path): return # 이미 했으면 그냥 리턴
         os.makedirs(ckpt_image_path, exist_ok=True)
-
         res_all_ep = []
         for ep in range(0, opt.max_iter + 1, opt.freq.ckpt):  # 5000 간격으로
             # load checkpoint (0 is random init)
@@ -167,6 +164,35 @@ class Model(base.Model):
                     util.restore_checkpoint(opt, self, resume=ep)  # 여기가 그파트같은데 해당 체크포인트의 리스토어
                 except:
                     continue
+            # novel view
+            pose_pred, pose_GT = self.get_all_training_poses(opt)
+            poses = pose_pred if opt.model == "barf" else pose_GT
+            if opt.model == "barf" and opt.data.dataset == "llff":
+                _, sim3 = self.prealign_cameras(opt, pose_pred, pose_GT)
+                scale = sim3.s1 / sim3.s0
+            else:
+                scale = 1
+            # rotate novel views around the "center" camera of all poses
+            idx_center = (poses - poses.mean(dim=0, keepdim=True))[..., 3].norm(dim=-1).argmin()
+            pose_novel = camera.get_novel_view_poses(opt, poses[idx_center], N=1, scale=scale).to(opt.device)
+            pose_novel_tqdm = tqdm.tqdm(pose_novel, desc="rendering novel views", leave=False)
+            intr = edict(next(iter(self.test_loader))).intr[:1].to(opt.device)  # grab intrinsics
+            for i, pose in enumerate(pose_novel_tqdm):
+                ret = self.graph.render_by_slices(opt, pose[None], intr=intr) if opt.nerf.rand_rays else \
+                    self.graph.render(opt, pose[None], intr=intr)
+                invdepth = (1 - ret.depth) / ret.opacity if opt.camera.ndc else 1 / (ret.depth / ret.opacity + eps)
+                rgb_map = ret.rgb.view(-1, opt.H, opt.W, 3).permute(0, 3, 1, 2)  # [B,3,H,W]
+                invdepth_map = invdepth.view(-1, opt.H, opt.W, 1).permute(0, 3, 1, 2)  # [B,1,H,W]
+                # psnr = -10 * self.graph.MSE_loss(rgb_map, var.image).log10().item()
+                # ssim = pytorch_ssim.ssim(rgb_map, var.image).item()
+                # lpips = self.lpips_loss(rgb_map * 2 - 1, var.image * 2 - 1).item()
+                # res.append(edict(psnr=psnr, ssim=ssim, lpips=lpips))
+                # dump novel views
+                torchvision_F.to_pil_image(rgb_map.cpu()[0]).save("{}/rgb_novel_{}ckpt_{}.png".format(ckpt_image_path, ep, i))
+                torchvision_F.to_pil_image(invdepth_map.cpu()[0]).save("{}/depth_novel_{}ckpt_{}.png".format(ckpt_image_path, ep, i))
+                break  # TODO : 일단 train 첫번째 이미지만
+
+            #for test pose
             res = []
             for i, batch in enumerate(loader):
                 var = edict(batch)
@@ -185,12 +211,13 @@ class Model(base.Model):
                 res.append(edict(psnr=psnr, ssim=ssim, lpips=lpips))
 
                 # dump novel views
-                torchvision_F.to_pil_image(rgb_map.cpu()[0]).save("{}/rgb_{}ckpt_{}.png".format(ckpt_image_path, ep, i))
-                torchvision_F.to_pil_image(invdepth_map.cpu()[0]).save("{}/depth_{}ckpt_{}.png".format(ckpt_image_path, ep, i))
-                if ep == opt.freq.ckpt: #GT는 같은 이미지니까 한번만 저장
-                    torchvision_F.to_pil_image(var.image.cpu()[0]).save("{}/rgb_GT_{}ckpt_{}.png".format(ckpt_image_path, ep, i))  # GT는 한번만 해도 될듯
+                torchvision_F.to_pil_image(rgb_map.cpu()[0]).save("{}/rgb_test_{}ckpt_{}.png".format(ckpt_image_path, ep, i))
+                torchvision_F.to_pil_image(invdepth_map.cpu()[0]).save(
+                    "{}/depth_test_{}ckpt_{}.png".format(ckpt_image_path, ep, i))
+                if ep == opt.freq.ckpt:  # GT는 같은 이미지니까 한번만 저장
+                    torchvision_F.to_pil_image(var.image.cpu()[0]).save(
+                        "{}/rgb_GT_{}ckpt_{}.png".format(ckpt_image_path, ep, i))  # GT는 한번만 해도 될듯
                 break  # TODO : 일단 train 첫번째 이미지만
-
             psnr = np.mean([r.psnr for r in res])
             ssim = np.mean([r.ssim for r in res])
             lpips = np.mean([r.lpips for r in res])
@@ -198,10 +225,8 @@ class Model(base.Model):
 
         ckpt_quant_fname = "{}/ckpt_quant.txt".format(opt.output_path)
         with open(ckpt_quant_fname, "w") as file:
-            for i,list in enumerate(res_all_ep):
+            for i, list in enumerate(res_all_ep):
                 file.write("{} {} {} {}\n".format(list.ep, list.psnr, list.ssim, list.lpips))
-
-
 
     @torch.no_grad()
     def generate_videos_synthesis(self,opt,eps=1e-10):
@@ -224,7 +249,7 @@ class Model(base.Model):
             else: scale = 1
             # rotate novel views around the "center" camera of all poses
             idx_center = (poses-poses.mean(dim=0,keepdim=True))[...,3].norm(dim=-1).argmin()
-            pose_novel = camera.get_novel_view_poses(opt,poses[idx_center],N=30,scale=scale).to(opt.device)#TODO
+            pose_novel = camera.get_novel_view_poses(opt,poses[idx_center],N=60,scale=scale).to(opt.device)
             # render the novel views
             novel_path = "{}/novel_view".format(opt.output_path)
             os.makedirs(novel_path,exist_ok=True)
@@ -259,6 +284,8 @@ class Model(base.Model):
             os.makedirs(novel_path,exist_ok=True)
             pose_novel_tqdm = tqdm.tqdm(pose_novel,desc="rendering novel views",leave=False)
             intr = edict(next(iter(self.test_loader))).intr[:1].to(opt.device) # grab intrinsics
+
+
             for i,pose in enumerate(pose_novel_tqdm):
                 ret = self.graph.render_by_slices(opt,pose[None],intr=intr) if opt.nerf.rand_rays else \
                       self.graph.render(opt,pose[None],intr=intr)
@@ -267,6 +294,7 @@ class Model(base.Model):
                 invdepth_map = invdepth.view(-1,opt.H,opt.W,1).permute(0,3,1,2) # [B,1,H,W]
                 torchvision_F.to_pil_image(rgb_map.cpu()[0]).save("{}/rgb_{}.png".format(novel_path,i))
                 torchvision_F.to_pil_image(invdepth_map.cpu()[0]).save("{}/depth_{}.png".format(novel_path,i))
+
             # write videos
             print("writing videos...")
             rgb_vid_fname = "{}/novel_view_rgb.mp4".format(opt.output_path)

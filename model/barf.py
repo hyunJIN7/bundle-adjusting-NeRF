@@ -87,7 +87,7 @@ class Model(nerf.Model):
         # get ground-truth (canonical) camera poses
         pose_GT = self.train_data.get_all_camera_poses(opt).to(opt.device)  #(3,4)
         # add synthetic pose perturbation to all training data
-        if opt.data.dataset in ["arkit","blender"] : #TODO:check
+        if opt.data.dataset in ["iphone","arkit","blender"] : #TODO:check  "iphone","arkit",
             pose = pose_GT
             if opt.camera.noise:
                 pose = camera.pose.compose([self.graph.pose_noise,pose])
@@ -183,7 +183,7 @@ class Model(nerf.Model):
     @torch.no_grad()
     def generate_videos_pose(self,opt):
         self.graph.eval()
-        fig = plt.figure(figsize=(10,10) if opt.data.dataset in ["arkit","blender"] else (16,8))
+        fig = plt.figure(figsize=(10,10) if opt.data.dataset in ["blender"] else (16,8)) #TODO : *** "arkit",
         cam_path = "{}/poses".format(opt.output_path)
         os.makedirs(cam_path,exist_ok=True)
         ep_list = []
@@ -194,16 +194,20 @@ class Model(nerf.Model):
                 except: continue
             # get the camera poses
             pose,pose_ref = self.get_all_training_poses(opt)
-            if opt.data.dataset in ["arkit","blender","llff"]:
+            if opt.data.dataset in ["blender","llff"]: #TODO : **
                 pose_aligned,_ = self.prealign_cameras(opt,pose,pose_ref)
+                #TODO:
+                """
+                 여기서 원본이랑 보정된 포즈 다 그리지말고 몇개당 하나만 추출해서 그리자
+                """
                 pose_aligned,pose_ref = pose_aligned.detach().cpu(),pose_ref.detach().cpu()
                 dict(
                     blender=util_vis.plot_save_poses_blender,
                     llff=util_vis.plot_save_poses,
-                    arkit=util_vis.plot_save_poses, #TODO : 여기가 그 블랜터랑 포즈 결과 비주얼 다른 곳
+                    #arkit=util_vis.plot_save_poses, #TODO : 여기가 그 블랜터랑 포즈 결과 비주얼 다른 곳
                 )[opt.data.dataset](opt,fig,pose_aligned,pose_ref=pose_ref,path=cam_path,ep=ep)
             else:
-                pose = pose.detach().cpu()
+                pose = pose.detach().cpu()  # 여기서 원본이랑 보정된 포즈 다 그리지말고 몇개당 하나만 추출해서 그리자
                 util_vis.plot_save_poses(opt,fig,pose,pose_ref=None,path=cam_path,ep=ep)
             ep_list.append(ep)
         plt.close()

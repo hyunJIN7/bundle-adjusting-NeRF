@@ -22,15 +22,16 @@ def main():
         m.build_networks(opt)
 
         if opt.model=="barf":
-            m.evaluate_ckt(opt) # TODO: 잘 돌아가나 확인 필요
             m.generate_videos_pose(opt)
-
-
-        m.restore_checkpoint(opt)
-        if opt.data.dataset in ["blender","llff","arkit","iphone"]: #TODO iphone은 테스트뷰 원래 저장안하는데 여기도 넣어볼까,EasyDict에 pose refine 없다고 에러남.
-            m.evaluate_full(opt)
-
-        m.generate_videos_synthesis(opt)
+        #     m.restore_checkpoint(opt)
+        #     m.evaluate_ckt(opt)
+        #
+        #
+        # m.restore_checkpoint(opt)
+        # if opt.data.dataset in ["blender","llff","arkit","iphone"]: #TODO iphone은 테스트뷰 원래 저장안하는데 여기도 넣어볼까,EasyDict에 pose refine 없다고 에러남.
+        #     m.evaluate_full(opt)
+        #
+        # m.generate_videos_synthesis(opt)
 
 if __name__=="__main__":
     main()
