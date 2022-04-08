@@ -105,7 +105,11 @@ class Model(base.Model):
     @torch.no_grad()
     def get_all_training_poses(self,opt):
         # get ground-truth (canonical) camera poses
-        pose_GT = self.train_data.get_all_camera_poses(opt).to(opt.device)
+        # pose_GT = self.train_data.get_all_camera_poses(opt).to(opt.device)
+        if opt.data.dataset in ["iphone"]:
+            pose_GT = self.train_data.get_GT_camera_poses_iphone(opt).to(opt.device)
+        else : pose_GT = self.train_data.get_all_camera_poses(opt).to(opt.device)
+
         return None,pose_GT
 
     @torch.no_grad()
@@ -241,7 +245,8 @@ class Model(base.Model):
             os.system("ffmpeg -y -framerate 30 -i {0}/depth_%d.png -pix_fmt yuv420p {1} >/dev/null 2>&1".format(test_path,depth_vid_fname))
 
         if opt.data.dataset in ["iphone", "arkit"]: #arkit,iphone은 test,novel 둘다 생성해야하기 때문
-            pose_pred,pose_GT = self.get_all_training_poses(opt)
+            pose_pred,pose_GT = self.get_all_training_poses(opt) #TODO : novel view에서 iphone도 training GT 원본 가져올 수 있게
+
             poses = pose_pred if opt.model=="barf" else pose_GT
             if opt.model=="barf" and opt.data.dataset=="llff" :
                 _,sim3 = self.prealign_cameras(opt,pose_pred,pose_GT)

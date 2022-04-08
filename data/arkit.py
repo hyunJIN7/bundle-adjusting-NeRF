@@ -115,6 +115,6 @@ class Dataset(base.Dataset):
     # [right, forward, up]
     def parse_raw_camera(self,opt,pose_raw):  #애초에 저장시킨 pose를 축 뒤집고 해놓으면 여기 처리할 필요 없지 않을까? 단 gt도 여기 기준 맞춰야하는건가...
         pose_flip = camera.pose(R=torch.diag(torch.tensor([1,-1,-1])))
-        pose = camera.pose.compose([pose_flip,pose_raw[:3]])
-        pose = camera.pose.invert(pose)
+        pose = camera.pose.compose([pose_flip,pose_raw[:3]])  # [right, forward, up]
+        pose = camera.pose.invert(pose)  #아마 c2w->w2c ?
         return pose
