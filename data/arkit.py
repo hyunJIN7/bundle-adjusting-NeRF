@@ -9,13 +9,11 @@ import imageio
 from easydict import EasyDict as edict
 import json
 import pickle
-
 from . import base
 import camera
 from util import log,debug
 
 class Dataset(base.Dataset):
-
     def __init__(self,opt,split="train",subset=None):
         self.raw_H,self.raw_W = 480,640
         super().__init__(opt,split)
@@ -53,7 +51,6 @@ class Dataset(base.Dataset):
 
     def get_all_camera_poses(self,opt):
         pose_raw_all = [torch.tensor(f ,dtype=torch.float32) for f in self.list] # """list : campose 의미"""
-        #pose_canon_all = torch.stack([p for p in pose_raw_all],dim=0)
         pose_canon_all = torch.stack([self.parse_raw_camera(opt, p) for p in pose_raw_all], dim=0)
         return pose_canon_all
 
@@ -88,9 +85,8 @@ class Dataset(base.Dataset):
         #Load camera intrinsics  # frane.txt -> camera intrinsics
         intrin_file = os.path.join(os.path.abspath('./'), self.path,'Frames.txt')
         assert os.path.isfile(intrin_file), "camera info:{} not found".format(intrin_file)
-        with open(intrin_file, "r") as f:  # frame.txt 읽어서
+        with open(intrin_file, "r") as f:  # frame.txt
             cam_intrinsic_lines = f.readlines()
-
         cam_intrinsics = []
         line_data_list = cam_intrinsic_lines[idx].split(',')
         cam_intrinsics.append([float(i) for i in line_data_list])
@@ -102,7 +98,7 @@ class Dataset(base.Dataset):
                 [0, cam_intrinsics[0][3], cam_intrinsics[0][5]],
                 [0, 0, 1]
             ]).float()
-        # 여기 그 prcoss_arkit image resize해서 여기도 바꿈
+        # origin video's origin_size(1920,1440) -> extract frame (640,480)
         ori_size = (1920, 1440)
         size = (640, 480)
         intr[0,:] /= (ori_size[0] / size[0])
@@ -113,8 +109,8 @@ class Dataset(base.Dataset):
         return intr,pose
 
     # [right, forward, up]
-    def parse_raw_camera(self,opt,pose_raw):  #애초에 저장시킨 pose를 축 뒤집고 해놓으면 여기 처리할 필요 없지 않을까? 단 gt도 여기 기준 맞춰야하는건가...
+    def parse_raw_camera(self,opt,pose_raw):
         pose_flip = camera.pose(R=torch.diag(torch.tensor([1,-1,-1])))
         pose = camera.pose.compose([pose_flip,pose_raw[:3]])  # [right, forward, up]
-        pose = camera.pose.invert(pose)  #아마 c2w->w2c ?
+        pose = camera.pose.invert(pose)  #아마 c2w->w2c?
         return pose

@@ -46,7 +46,9 @@ class Dataset(base.Dataset):
             self.list = self.list[:-num_val_split] if split == "train" else self.list[-num_val_split:]  # 전체에서 0.9 : 0.1 = train : test 비율
             self.cam_pose = self.cam_pose[:-num_val_split] if split == "train" else self.cam_pose[-num_val_split:]
 
-        if subset: self.list = self.list[:subset]
+        if subset:
+            self.list = self.list[:subset] # val 4개만
+            self.cam_pose = self.cam_pose[:subset]
         # preload dataset
         if opt.data.preload:
             self.images = self.preload_threading(opt, self.get_image)
@@ -57,19 +59,18 @@ class Dataset(base.Dataset):
         # pre-iterate through all samples and group together
         self.all = torch.utils.data._utils.collate.default_collate([s for s in self])
 
-    def get_all_camera_poses(self,opt): #data 로드할때 여기 접근
+    def get_all_camera_poses(self,opt): #기본 train할때 여기 접근해서 가져오고, data 로드할때 여기 접근
         if self.split == 'test':
             pose_raw_all = [torch.tensor(f, dtype=torch.float32) for f in self.cam_pose]
             pose = torch.stack([self.parse_raw_camera(opt, p) for p in pose_raw_all], dim=0)
-
-        else :
+        else:   #train,val initial pose I
             pose = camera.pose(t=torch.zeros(len(self),3))  # TODO :Camera 초기 포즈
         return pose
 
     def get_GT_camera_poses_iphone(self, opt):
-        #여기 iphone pose 평가할때 train gt 데이터 로드 위해
+        #여기 iphone pose 평가할때 gt 데이터 로드 위해(train,val,test)
         pose_raw_all = [torch.tensor(f, dtype=torch.float32) for f in self.cam_pose]
-        pose = torch.stack([self.parse_raw_camera(opt, p) for p in pose_raw_all], dim=0) #torch.stack([p for p in pose_raw_all], dim=0)
+        pose = torch.stack([self.parse_raw_camera(opt, p) for p in pose_raw_all], dim=0)
         return pose
 
     def __getitem__(self,idx):
@@ -94,40 +95,37 @@ class Dataset(base.Dataset):
 
     def get_camera(self,opt,idx):
         #Load camera intrinsics  # frane.txt -> camera intrinsics
-        #TODO: 경로체크 root 자체에서 실행하면 지금 아래 이렇게 하는게 맞을거야  ../ 아니라
         intrin_file = os.path.join(os.path.abspath('./'), self.path,'Frames.txt')
         assert os.path.isfile(intrin_file), "camera info:{} not found".format(intrin_file)
-        with open(intrin_file, "r") as f:  # frame.txt 읽어서
+        with open(intrin_file, "r") as f:  # frame.txt
             cam_intrinsic_lines = f.readlines()
-
         cam_intrinsics = []
         line_data_list = cam_intrinsic_lines[idx].split(',')
         cam_intrinsics.append([float(i) for i in line_data_list])
-
+        # self.focal = self.raw_W*4.2/(12.8/2.55)
+        # intr = torch.tensor([[self.focal,0,self.raw_W/2],
+        #                      [0,self.focal,self.raw_H/2],
+        #                      [0,0,1]]).float()
             # frame.txt -> cam_instrinsic
         intr = torch.tensor([
                 [cam_intrinsics[0][2], 0, cam_intrinsics[0][4]],
                 [0, cam_intrinsics[0][3], cam_intrinsics[0][5]],
                 [0, 0, 1]
             ]).float()
-        # 여기 그 prcoss_arkit image resize해서 여기도 바꿈
+        # origin video's origin_size(1920,1440) -> extract frame (640,480)
         ori_size = (1920, 1440)
         size = (640, 480)
         intr[0,:] /= (ori_size[0] / size[0])
         intr[1, :] /= (ori_size[1] / size[1])  #resize 전 크기가 orgin_size 이기 때문에
-        # self.focal = self.raw_W*4.2/(12.8/2.55)
-        # intr = torch.tensor([[self.focal,0,self.raw_W/2],
-        #                      [0,self.focal,self.raw_H/2],
-        #                      [0,0,1]]).float()
-        pose = camera.pose(t=torch.zeros(3))
+
         if self.split == 'test':
             pose_raw = torch.tensor(self.cam_pose[idx],dtype=torch.float32)
             pose = self.parse_raw_camera(opt, pose_raw)
+        else: pose = camera.pose(t=torch.zeros(3)) #TODO ...
         return intr,pose
 
-
     # [right, forward, up]
-    def parse_raw_camera(self,opt,pose_raw):  #애초에 저장시킨 pose를 축 뒤집고 해놓으면 여기 처리할 필요 없지 않을까? 단 gt도 여기 기준 맞춰야하는건가...
+    def parse_raw_camera(self,opt,pose_raw):
         pose_flip = camera.pose(R=torch.diag(torch.tensor([1,-1,-1])))
         pose = camera.pose.compose([pose_flip,pose_raw[:3]])
         pose = camera.pose.invert(pose)

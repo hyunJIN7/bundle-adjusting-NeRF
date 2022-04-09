@@ -17,8 +17,9 @@ from skimage import img_as_ubyte
 원본대로 로드 후 키프레임 셀랙 할때만 [right,forward,up]로 진행하고
 pose 저장은  [right,up,back]
 """
-
-# python run_nerf.py --expname computer
+# cd data 한 다음에 이 코드 실행해야하나봐 경로 이상해
+# python process_arkit_data.py --expname stair_llff01
+# 다 실행한 이후엔 cd ../ 해주고
 def config_parser():
     import configargparse
     parser = configargparse.ArgumentParser()
@@ -31,7 +32,7 @@ def config_parser():
     # 0.5,0.01 : 204,104
     parser.add_argument("--min_angle_keyframe", type=float, default=15,
                         help='minimum angle between key frames')
-    parser.add_argument("--min_distance_keyframe", type=float, default=0.15,
+    parser.add_argument("--min_distance_keyframe", type=float, default=0.1,
                         help='minimum distance between key frames')
 
     #data
@@ -304,8 +305,7 @@ def process_arkit_data(args,ori_size=(1920, 1440), size=(640, 480)):
         f.writelines(iphone_poses)
 
 # cd data 한 다음에 이 코드 실행해야하나봐 경로 이상해
-# python process_arkit_data.py --expname stair_llff01
-
+# python process_arkit_data.py --expname half_box
 # 다 실행한 이후엔 cd ../ 해주고
 if __name__ == '__main__':
     parser = config_parser()

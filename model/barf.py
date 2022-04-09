@@ -100,7 +100,7 @@ class Model(nerf.Model):
     @torch.no_grad()
     def get_gt_training_poses_iphone_for_eval(self,opt):
         """
-            iphone quant_pose 연산 위해 train data load
+            iphone quant_pose 연산 위해 GT data load
         """
         # get ground-truth (canonical) camera poses
         pose_GT = self.train_data.get_GT_camera_poses_iphone(opt).to(opt.device)
@@ -148,6 +148,7 @@ class Model(nerf.Model):
             pose, pose_GT = self.get_gt_training_poses_iphone_for_eval(opt)
         else:
             pose, pose_GT = self.get_all_training_poses(opt)
+
         pose_aligned,self.graph.sim3 = self.prealign_cameras(opt,pose,pose_GT)
         error = self.evaluate_camera_alignment(opt,pose_aligned,pose_GT)
         print("--------------------------")
