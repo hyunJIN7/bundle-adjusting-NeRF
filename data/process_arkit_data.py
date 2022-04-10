@@ -10,7 +10,7 @@ import json
 import cv2
 from transforms3d.quaternions import quat2mat
 from skimage import img_as_ubyte
-# np.random.seed(0) TODO : 이거 고정시키지 말자.
+# np.random.seed(0)
 
 """
 [right,up,back]

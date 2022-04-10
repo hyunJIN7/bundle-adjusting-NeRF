@@ -253,8 +253,7 @@ class Model(base.Model):
             # rotate novel views around the "center" camera of all poses
             idx_center = (poses - poses.mean(dim=0, keepdim=True))[..., 3].norm(dim=-1).argmin()
             pose_novel = camera.get_novel_view_poses(opt, poses[idx_center], N=60, scale=scale).to(opt.device)
-            print("###### train_pose {}".format(poses.shape))
-            print("###### novel_pose {}".format(pose_novel.shape))
+
             # render the novel views
             novel_path = "{}/novel_view".format(opt.output_path)
             os.makedirs(novel_path, exist_ok=True)
@@ -282,6 +281,8 @@ class Model(base.Model):
             # render the novel views
             novel_path = "{}/novel_view".format(opt.output_path)
             os.makedirs(novel_path,exist_ok=True)
+            # print("###### train_pose {}".format(poses.shape))
+            # print("###### novel_pose {}".format(pose_novel.shape))
             pose_novel_tqdm = tqdm.tqdm(pose_novel,desc="rendering novel views",leave=False)
             intr = edict(next(iter(self.test_loader))).intr[:1].to(opt.device) # grab intrinsics
             for i,pose in enumerate(pose_novel_tqdm):
