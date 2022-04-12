@@ -181,6 +181,14 @@ class Model(nerf.Model):
             iterator.set_postfix(loss="{:.3f}".format(loss.all))
         return var
 
+
+    def select_plot_pose(self,pose):
+        """
+        pose refine 그릴때 몇개 일부만 그리기 위해
+        """
+        select_pose = [pose[i] for i in range(pose.shape[0]) if i%15] #TODO : 간격 뭘로 할지
+        return select_pose
+
     @torch.no_grad()
     def generate_videos_pose(self,opt):
         self.graph.eval()
@@ -195,20 +203,21 @@ class Model(nerf.Model):
                 except: continue
             # get the camera poses
             pose,pose_ref = self.get_all_training_poses(opt)
-            if opt.data.dataset in ["blender","llff"]: #TODO : **
+            if opt.data.dataset in ["arkit","blender","llff"]: #TODO : **
                 pose_aligned,_ = self.prealign_cameras(opt,pose,pose_ref)
-                #TODO:
-                """
-                 여기서 원본이랑 보정된 포즈 다 그리지말고 몇개당 하나만 추출해서 그리자
-                """
                 pose_aligned,pose_ref = pose_aligned.detach().cpu(),pose_ref.detach().cpu()
+                # TODO: 여기서 원본이랑 보정된 포즈 다 그리지말고 몇개당 하나만 추출
+                # pose_aligned = self.select_plot_pose(pose_aligned)
+                # pose_ref = self.select_plot_pose(pose_ref)
                 dict(
                     blender=util_vis.plot_save_poses_blender,
                     llff=util_vis.plot_save_poses,
-                    #arkit=util_vis.plot_save_poses, #TODO : 여기가 그 블랜터랑 포즈 결과 비주얼 다른 곳
+                    arkit=util_vis.plot_save_poses, #TODO : 여기가 그 블랜터랑 포즈 결과 비주얼 다른 곳
                 )[opt.data.dataset](opt,fig,pose_aligned,pose_ref=pose_ref,path=cam_path,ep=ep)
             else:
                 pose = pose.detach().cpu()  # 여기서 원본이랑 보정된 포즈 다 그리지말고 몇개당 하나만 추출해서 그리자
+                #TODO : 그릴 pose 추출
+                # pose= self.select_plot_pose(pose)
                 util_vis.plot_save_poses(opt,fig,pose,pose_ref=None,path=cam_path,ep=ep)
             ep_list.append(ep)
         plt.close()

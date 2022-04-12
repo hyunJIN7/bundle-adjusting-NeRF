@@ -13,8 +13,7 @@ from skimage import img_as_ubyte
 
 """
 [right,up,back]
-
-keframe select : every 30 frames for optitrack
+keframe select : every 30 frames for opti-track
 """
 # cd data 한 다음에 이 코드 실행해야하나봐 경로 이상해
 # python process_arkit_data.py --expname stair_llff01
@@ -37,6 +36,8 @@ def config_parser():
     #data
     parser.add_argument("--data_val_ratio", type=float, default=0.1,
                         help='ratio of sequence split for validation')
+    parser.add_argument("--_data_frame_interval", type=int, default=30,
+                        help='key frame interval to sync with the opti-track')
 
 
     return parser
@@ -188,23 +189,12 @@ def process_arkit_data(args,ori_size=(1920, 1440), size=(640, 480)):
     #quat -> rot
     all_raw_cam_pose,all_cam_pose,sync_timestamp_name = load_camera_pose(os.path.join(basedir, 'SyncedPoses.txt'))
 
-    """Keyframes selection"""
-    all_ids = [0]
-    last_pose = all_cam_pose[0]
-    for i in range(len(all_cam_pose)):
-        cam_intrinsic = K
-        cam_pose = all_cam_pose[i]
-        # translation->0.1m,rotation->15도 max 값 기준 넘는 것만 select
-        angle = np.arccos(
-            ((np.linalg.inv(cam_pose[:3, :3]) @ last_pose[:3, :3] @ np.array([0, 0, 1]).T) * np.array(
-                [0, 0, 1])).sum())
-        # extrinsice rotation 뽑아 inverse @  그 전 pose rotation @
-        # rotation 사이 연산 후 accose 으로 각 알아내는
-        dis = np.linalg.norm(cam_pose[:3, 3] - last_pose[:3, 3])
-        # 기준값
-        if angle > (args.min_angle_keyframe / 180) * np.pi or dis > args.min_distance_keyframe:
-            all_ids.append(i)
-            last_pose = cam_pose
+    """Keyframes selection
+        arkit 30Hz 라 가정할때 
+        30개당 하나씩 추출. 0번째 추출안함.
+        29 59 89
+    """
+    all_ids = [i for i in range(len(all_cam_pose)) if (i+1)%args.data_frame_interval == 0 ]
 
     """final select image,keyframe_poses  for train,val data"""
     keyframe_imgs = []
@@ -223,15 +213,13 @@ def process_arkit_data(args,ori_size=(1920, 1440), size=(640, 480)):
     """train, val, test"""
     n = keyframe_poses.shape[0]  # count of image
     num_val_split = (int)(n * args.data_val_ratio)
-    train_indexs = np.linspace(0, n, n, endpoint=False, dtype=int)[:-num_val_split] #np.linspace(0, n, (int)(n * 0.9), endpoint=False, dtype=int)
+    train_indexs = np.linspace(0, n, n, endpoint=False, dtype=int)[:-num_val_split]
     val_indexs = np.linspace(0, n, n, endpoint=False, dtype=int)[-num_val_split:]
     test_indexs = np.random.choice(len(all_raw_cam_pose) , int(n*0.25), replace=False) #키프레임셀렉에서말고 전체 싱크 맞춘거에서 테스트 데이터 뽑아,비복원추출
     test_indexs.sort()
     iphone_train_val = np.concatenate((train_indexs,val_indexs))
     iphone_train_val.sort()
-    # print(iphone_train_val)
 
-    #test로 셀렉된 번호에 대해서 all_raw_cam_pose,sync_timestamp_name에서 데이터 뽑아
     """final select image,keyframe_poses for test data"""
     test_imgs = []
     test_poses = []

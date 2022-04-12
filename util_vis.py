@@ -247,6 +247,50 @@ def plot_save_poses_blender(opt,fig,pose,pose_ref=None,path=None,ep=None):
     # clean up
     plt.clf()
 
+# for novel_view test
+def plot_save_novel_poses(fig,pose,pose_ref=None,path=None,ep=None): # pose = novel_view, pose_ref= rectangle_pose
+    # get the camera meshes
+    _,_,cam = get_camera_mesh(pose,depth=0.5)
+    cam = cam.numpy()
+    if pose_ref is not None:
+        _,_,cam_ref = get_camera_mesh(pose_ref,depth=0.5)
+        cam_ref = cam_ref.numpy()
+    # set up plot window(s)
+    ax = fig.add_subplot(111,projection="3d")
+    ax.set_title(" {}".format(ep),pad=0)
+    setup_3D_plot(ax,elev=30,azim=30,lim=edict(x=(-1.5,1.5),y=(-1.5,1.5),z=(-1.5,1.1))) #lim=edict(x=(-1,1),y=(-1,1),z=(-0.5,0.3)) lim=edict(x=(-3,3),y=(-3,3),z=(-3,2.4))
+    plt.subplots_adjust(left=0,right=1,bottom=0,top=0.95,wspace=0,hspace=0)
+    plt.margins(tight=True,x=0,y=0)
+    # plot the cameras
+    N = len(cam)
+    ref_color = (0.7,0.2,0.7)
+    pred_color = (0,0.6,0.7)
+    ax.add_collection3d(Poly3DCollection([v[:4] for v in cam_ref],alpha=0.2,facecolor=ref_color))
+
+    for i in range(len(cam_ref)):
+        ax.plot(cam_ref[i, :, 0], cam_ref[i, :, 1], cam_ref[i, :, 2], color=ref_color, linewidth=0.5)
+        ax.scatter(cam_ref[i,5,0],cam_ref[i,5,1],cam_ref[i,5,2],color=ref_color,s=20)
+
+    png_fname = "{}/{}_GT.png".format(path,ep)
+    plt.savefig(png_fname,dpi=75)
+    ax.add_collection3d(Poly3DCollection([v[:4] for v in cam],alpha=0.2,facecolor=pred_color))
+    for i in range(N):
+        ax.plot(cam[i,:,0],cam[i,:,1],cam[i,:,2],color=pred_color,linewidth=1)
+    for i in range(len(cam_ref)):
+        ax.scatter(cam[i,5,0],cam[i,5,1],cam[i,5,2],color=pred_color,s=20)
+    for i in range(N):
+        ax.plot(cam[i,5,0],
+                cam[i,5,1],
+                cam[i,5,2],color=(1,0,0),linewidth=3)
+    for i in range(len(cam_ref)):
+        ax.plot(cam_ref[i,5,0],
+                cam_ref[i,5,1],
+                cam_ref[i,5,2],color=(1,0,0),linewidth=3)
+    png_fname = "{}/{}.png".format(path,ep)
+    plt.savefig(png_fname,dpi=75)
+    # clean up
+    plt.clf()
+
 def setup_3D_plot(ax,elev,azim,lim=None):
     ax.xaxis.set_pane_color((1.0,1.0,1.0,0.0))
     ax.yaxis.set_pane_color((1.0,1.0,1.0,0.0))

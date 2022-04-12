@@ -18,7 +18,7 @@ from skimage import img_as_ubyte
 pose 저장은  [right,up,back]
 """
 # cd data 한 다음에 이 코드 실행해야하나봐 경로 이상해
-# python process_arkit_data.py --expname stair_llff01
+# python process_arkit_data.py --expname llff_main_computers
 # 다 실행한 이후엔 cd ../ 해주고
 def config_parser():
     import configargparse

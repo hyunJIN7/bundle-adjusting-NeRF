@@ -294,7 +294,7 @@ def procrustes_analysis(X0,X1): # [N,3]
     sim3 = edict(t0=t0[0],t1=t1[0],s0=s0,s1=s1,R=R)
     return sim3
 
-def get_novel_view_poses(opt,pose_anchor,N=60,scale=1):
+def get_novel_view_poses(opt, pose_anchor,N=60,scale=1):
     # create circular viewpoints (small oscillations)
     theta = torch.arange(N)/N*2*np.pi
     R_x = angle_to_rotation_matrix((theta.sin()*0.05).asin(),"X")

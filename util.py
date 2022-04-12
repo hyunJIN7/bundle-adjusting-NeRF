@@ -128,11 +128,11 @@ def restore_checkpoint(opt,model,load_name=None,resume=False):
         child_state_dict = get_child_state_dict(checkpoint["graph"],name)
         if child_state_dict:
             print("restoring {}...".format(name))
-            child.load_state_dict(child_state_dict)
+            child.load_state_dict(child_state_dict, strict=False) #TODO: False option
     for key in model.__dict__:
         if key.split("_")[0] in ["optim","sched"] and key in checkpoint and resume:
             print("restoring {}...".format(key))
-            getattr(model,key).load_state_dict(checkpoint[key])
+            getattr(model,key).load_state_dict(checkpoint[key], strict=False)
     if resume:
         ep,it = checkpoint["epoch"],checkpoint["iter"]
         if resume is not True: assert(resume==(ep or it))
