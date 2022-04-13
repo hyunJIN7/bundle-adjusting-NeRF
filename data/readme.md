@@ -17,7 +17,7 @@ data_name엔 data/arkit/ 하위에 원하는 데이터 넣어 놓고 실행.
 
 - process_arkit_data.py : [right,up,back] 원본대로 로드 후 키프레임 셀랙 할때만 [right,forward,up]로 진행하고 pose 저장은  [right,up,back]
 - process_arkit_data_frame2.py :[right,up,back] process_arkit_data_frame2 거친후  [right,forward,up]
-- process_arkit_data_frame3.py : [right,up,back] 그대로 저장하되 keframe select은 every 30 frames for opti-track (주기  )
+- process_arkit_data_frame3.py : [right,up,back] 그대로 저장하되 keframe select은 every 30 frames for opti-track (선택 프레임 주기 변)
 
 ### Dataset format
 - {train,val,test}_transformation.txt : `timestamp {train,val,test}/image_name r11 r12 r13 tx r21 r22 r23 ty r31 r32 r33 tz
