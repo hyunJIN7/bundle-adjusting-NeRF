@@ -20,7 +20,7 @@ data_name엔 data/arkit/ 하위에 원하는 데이터 넣어 놓고 실행.
 - process_arkit_data_frame3.py : [right,up,back] 그대로 저장하되 keframe select은 every 30 frames for opti-track (선택 프레임 주기 변)
 
 ### Dataset format
-- {train,val,test}_transformation.txt : `timestamp {train,val,test}/image_name r11 r12 r13 tx r21 r22 r23 ty r31 r32 r33 tz
+- {train,val,test}_transformation.txt : `timestamp {train,val,test}/image_name r11 r12 r13 tx r21 r22 r23 ty r31 r32 r33 tz`
 - SyncedPoses.txt : `timestamp imagenum(string) tx ty tz(m) qx qy qz qw`
 [ios_logger](https://github.com/Varvrar/ios_logger) 참고
 
