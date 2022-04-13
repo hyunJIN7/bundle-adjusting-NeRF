@@ -14,3 +14,6 @@ data_name엔 data/arkit/ 하위에 원하는 데이터 넣어 놓고 실행.
 5.  `iphone_train_val_images` 폴더는 train+val 합쳐진 데이터
 
 
+# Dataset format
+- {train,val,test}_transformation.txt : `timestamp {train,val,test}/image_name r11 r12 r13 tx r21 r22 r23 ty r31 r32 r33 tz
+`
