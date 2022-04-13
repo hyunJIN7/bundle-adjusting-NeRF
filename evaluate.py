@@ -23,7 +23,7 @@ def main():
 
         if opt.model=="barf":
             m.generate_videos_pose(opt)
-            m.restore_checkpoint(opt)
+            # m.restore_checkpoint(opt)
             m.evaluate_ckt(opt)
 
         m.restore_checkpoint(opt)

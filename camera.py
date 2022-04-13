@@ -44,7 +44,7 @@ class Pose():
     def compose(self,pose_list):
         # compose a sequence of poses together
         # pose_new(x) = poseN o ... o pose2 o pose1(x)
-        pose_new = pose_list[0]
+        pose_new = pose_list[0]   # in novel view, [pose_shift,pose_rot,pose_shift2]
         for pose in pose_list[1:]:
             pose_new = self.compose_pair(pose_new,pose)
         return pose_new
@@ -212,9 +212,9 @@ def cam2world(X,pose): #x 가 center ?..
     pose_inv = Pose().invert(pose)
     return X_hom@pose_inv.transpose(-1,-2)
 
-def angle_to_rotation_matrix(a,axis): #TODO : 오일러  to rotation matrix
-    # get the rotation matrix from Euler angle around specific axis
-    roll = dict(X=1,Y=2,Z=0)[axis]
+def angle_to_rotation_matrix(a,axis):
+    # get the rotation matrix from Euler angle around specific axis , 축 주위 오일러 각도에서 회전 행렬 가저옴
+    roll = dict(X=1,Y=2,Z=0)[axis] #몇번축인지
     O = torch.zeros_like(a)
     I = torch.ones_like(a)
     M = torch.stack([torch.stack([a.cos(),-a.sin(),O],dim=-1),
@@ -299,9 +299,9 @@ def get_novel_view_poses(opt, pose_anchor,N=60,scale=1):
     theta = torch.arange(N)/N*2*np.pi
     R_x = angle_to_rotation_matrix((theta.sin()*0.05).asin(),"X")
     R_y = angle_to_rotation_matrix((theta.cos()*0.05).asin(),"Y")
-    pose_rot = pose(R=R_y@R_x)
+    pose_rot = pose(R=R_y@R_x) #x,y 회전행렬 적용
     pose_shift = pose(t=[0,0,-4*scale])
-    pose_shift2 = pose(t=[0,0,3.8*scale])
-    pose_oscil = pose.compose([pose_shift,pose_rot,pose_shift2])
+    pose_shift2 = pose(t=[0,0,3.8*scale]) # z축 방향 shift 들
+    pose_oscil = pose.compose([pose_shift,pose_rot,pose_shift2]) # shift1 -> rot -> shift2 순차적으로 적용
     pose_novel = pose.compose([pose_oscil,pose_anchor.cpu()[None]])
     return pose_novel

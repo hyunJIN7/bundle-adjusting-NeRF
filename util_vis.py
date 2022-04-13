@@ -258,7 +258,7 @@ def plot_save_novel_poses(fig,pose,pose_ref=None,path=None,ep=None): # pose = no
     # set up plot window(s)
     ax = fig.add_subplot(111,projection="3d")
     ax.set_title(" {}".format(ep),pad=0)
-    setup_3D_plot(ax,elev=30,azim=30,lim=edict(x=(-1.5,1.5),y=(-1.5,1.5),z=(-1.5,1.1))) #lim=edict(x=(-1,1),y=(-1,1),z=(-0.5,0.3)) lim=edict(x=(-3,3),y=(-3,3),z=(-3,2.4))
+    setup_3D_plot(ax,elev=10,azim=50,lim=edict(x=(-3.5,1),y=(-3.5,1),z=(-3,1))) #lim=edict(x=(-1,1),y=(-1,1),z=(-0.5,0.3)) lim=edict(x=(-3,3),y=(-3,3),z=(-3,2.4))
     plt.subplots_adjust(left=0,right=1,bottom=0,top=0.95,wspace=0,hspace=0)
     plt.margins(tight=True,x=0,y=0)
     # plot the cameras
