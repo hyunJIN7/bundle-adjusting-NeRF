@@ -105,7 +105,6 @@ class Model(base.Model):
     @torch.no_grad()
     def get_all_training_poses(self,opt):
         # get ground-truth (canonical) camera poses
-        # pose_GT = self.train_data.get_all_camera_poses(opt).to(opt.device)
         if opt.data.dataset in ["iphone"]:
             pose_GT = self.train_data.get_GT_camera_poses_iphone(opt).to(opt.device)
         else : pose_GT = self.train_data.get_all_camera_poses(opt).to(opt.device)
@@ -167,8 +166,12 @@ class Model(base.Model):
                 except:
                     continue
             # novel view
-            pose_pred, pose_GT = self.get_all_training_poses(opt)
-            poses = pose_pred if opt.model == "barf" else pose_GT
+            if opt.data.dataset in ["iphone"]:
+                pose_GT = self.train_data.get_GT_camera_poses_iphone(opt).to(opt.device)
+                pose_pred=None
+            else:
+                pose_pred,pose_GT = self.get_all_training_poses(opt)
+            poses = pose_GT
             if opt.model == "barf" and opt.data.dataset == "llff":
                 _, sim3 = self.prealign_cameras(opt, pose_pred, pose_GT)
                 scale = sim3.s1 / sim3.s0
@@ -269,8 +272,15 @@ class Model(base.Model):
         #         torchvision_F.to_pil_image(invdepth_map.cpu()[0]).save("{}/depth_{}.png".format(novel_path, i))
 
         if opt.data.dataset in ["iphone", "arkit"]:  #arkit,iphone test,novel 둘 다 생성위함
-            pose_pred,pose_GT = self.get_all_training_poses(opt) #novel view에서 iphone도 training GT 원본 가져오게 바꿈
-            poses = pose_pred if opt.model=="barf" else pose_GT
+            # pose_pred,pose_GT = self.get_all_training_poses(opt)
+            # #novel view에서 iphone도 training GT 원본 가져오게 바꿈,
+            # 저 한줄코드는 nerf.py get_all_training_poses가 아닌  barf.py get_all_training_poses로 접근, 그래서 아래 조건처럼 나눔
+            if opt.data.dataset in ["iphone"]:
+                pose_GT = self.train_data.get_GT_camera_poses_iphone(opt).to(opt.device)
+                pose_pred=None
+            else:
+                pose_pred,pose_GT = self.get_all_training_poses(opt)
+            poses = pose_GT
             if opt.model=="barf" and opt.data.dataset=="llff":
                 _,sim3 = self.prealign_cameras(opt,pose_pred,pose_GT)
                 scale = sim3.s1/sim3.s0

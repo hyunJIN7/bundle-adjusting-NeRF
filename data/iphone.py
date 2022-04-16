@@ -22,7 +22,7 @@ class Dataset(base.Dataset):
         self.root = opt.data.root or "data/iphone"
         self.path = "{}/{}".format(self.root,opt.data.scene)
         self.path_image = "{}/iphone_train_val_images".format(self.path) if split != "test" else "{}/test".format(self.path)
-        self.list = sorted(os.listdir(self.path_image), key=lambda f: int(f.split(".")[0]))
+        self.list = sorted(os.listdir(self.path_image), key=lambda f: int(f.split(".")[0]))  #이미지
         pose_fname = "{}/transforms_iphone.txt".format(self.path) if split != "test" else "{}/transforms_{}.txt".format(self.path, split)
         pose_file = os.path.join('./', pose_fname)
         assert os.path.isfile(pose_file), "pose info:{} not found".format(pose_file)
