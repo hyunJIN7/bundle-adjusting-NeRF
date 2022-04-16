@@ -74,12 +74,6 @@ class Dataset(base.Dataset):
         image = PIL.Image.fromarray(imageio.imread(image_fname)) # directly using PIL.Image.open() leads to weird corruption....
         return image
 
-    # def preprocess_image(self,opt,image,aug=None):
-    #     image = super().preprocess_image(opt,image,aug=aug)
-    #     rgb,mask = image[:3],image[3:]
-    #     if opt.data.bgcolor is not None:
-    #         rgb = rgb*mask+opt.data.bgcolor*(1-mask)
-    #     return rgb
 
     def get_camera(self,opt,idx):
         #Load camera intrinsics  # frane.txt -> camera intrinsics

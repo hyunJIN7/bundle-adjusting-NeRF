@@ -121,7 +121,7 @@ class Dataset(base.Dataset):
         if self.split == 'test':
             pose_raw = torch.tensor(self.cam_pose[idx],dtype=torch.float32)
             pose = self.parse_raw_camera(opt, pose_raw)
-        else: pose = camera.pose(t=torch.zeros(3)) #TODO ...
+        else: pose = camera.pose(t=torch.zeros(3))
         return intr,pose
 
     # [right, forward, up]

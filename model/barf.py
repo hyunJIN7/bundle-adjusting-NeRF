@@ -65,13 +65,13 @@ class Model(nerf.Model):
         if split=="train":
             # log learning rate
             lr = self.optim_pose.param_groups[0]["lr"]
-            self.tb.add_scalar("{0}/{1}".format(split,"lr_pose"),lr,step)
+            self.tb.add_scalar("{0}/{1}".format(split,"lr_pose"),lr,step) #
         # compute pose error
         if split=="train" and opt.data.dataset in ["iphone","arkit","blender","llff"]:
             pose,pose_GT = self.get_all_training_poses(opt)
-            pose_aligned,_ = self.prealign_cameras(opt,pose,pose_GT) #TODO:prealign_cameras 를 arkit에 해야하는가
+            pose_aligned,_ = self.prealign_cameras(opt,pose,pose_GT)
             error = self.evaluate_camera_alignment(opt,pose_aligned,pose_GT)
-            self.tb.add_scalar("{0}/error_R".format(split),error.R.mean(),step)
+            self.tb.add_scalar("{0}/error_R".format(split),error.R.mean(),step)  # Tensorboard
             self.tb.add_scalar("{0}/error_t".format(split),error.t.mean(),step)
 
     @torch.no_grad()
@@ -87,7 +87,7 @@ class Model(nerf.Model):
         # get ground-truth (canonical) camera poses
         pose_GT = self.train_data.get_all_camera_poses(opt).to(opt.device)  #(3,4)
         # add synthetic pose perturbation to all training data
-        if opt.data.dataset in ["iphone","arkit","blender"] : #TODO:check  "iphone","arkit",
+        if opt.data.dataset in ["arkit","blender"] : #TODO:check  "iphone","arkit",
             pose = pose_GT
             if opt.camera.noise:
                 pose = camera.pose.compose([self.graph.pose_noise,pose])
@@ -104,9 +104,7 @@ class Model(nerf.Model):
         """
         # get ground-truth (canonical) camera poses
         pose_GT = self.train_data.get_GT_camera_poses_iphone(opt).to(opt.device)
-        # add synthetic pose perturbation to all training data
         pose = self.graph.pose_eye
-
         # add learned pose correction to all training data
         pose_refine = camera.lie.se3_to_SE3(self.graph.se3_refine.weight) #embeding
         pose = camera.pose.compose([pose_refine,pose]) #refine_pose와 pose 사이 pose_new(x) = poseN o ... o pose2 o pose1(x) 이렇게
@@ -144,10 +142,9 @@ class Model(nerf.Model):
     def evaluate_full(self,opt):
         self.graph.eval()
         # evaluate rotation/translation
-        if opt.data.dataset in ["iphone"]:
-            pose, pose_GT = self.get_gt_training_poses_iphone_for_eval(opt)
-        else:
+        if opt.data.dataset not in ["iphone"]:
             pose, pose_GT = self.get_all_training_poses(opt)
+        else: pose, pose_GT = self.get_gt_training_poses_iphone_for_eval(opt)
 
         pose_aligned,self.graph.sim3 = self.prealign_cameras(opt,pose,pose_GT)
         error = self.evaluate_camera_alignment(opt,pose_aligned,pose_GT)

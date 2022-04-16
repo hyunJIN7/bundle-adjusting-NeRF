@@ -9,7 +9,9 @@ rgb,depth,intrinsic,pose 필요
 
 ply 파일로 저장시켜서 mesh 만들어 
 """
-# python pointcloud/create_rgbdepth2pointcloud.py --extrinsic transforms_test.txt --expname llff_main_computers_03
+# python pointcloud/create_rgbdepth2pointcloud.py --extrinsic transforms_test.txt --expname lego --depth_scale 1000????
+# python pointcloud/create_rgbdepth2pointcloud.py --extrinsic extrinsic.txt --expname llff_lab01 --ptd_down_sample False
+
 def config_parser():
     import configargparse
     parser = configargparse.ArgumentParser()
@@ -24,6 +26,11 @@ def config_parser():
     parser.add_argument("--extrinsic", type=str, default='extrinsic.txt',
                         help='extrinisc.txt name')
 
+    #depth
+    parser.add_argument("--depth_scale", type=float, default=1.0,
+                        help='depth_scale')
+    parser.add_argument("--ptd_down_sample", type=bool, default=True,
+                        help='point cloud down sampling')
     return parser
 
 def draw_image(rgbd):
@@ -49,13 +56,13 @@ def load_iamge_data(args):
     for i in range(len(color_list)):
         color_raw = o3d.io.read_image(os.path.join(color_dir, color_list[i]))
         depth_raw = o3d.io.read_image(os.path.join(depth_dir, depth_list[i]))
-        rgbd_image = o3d.geometry.RGBDImage.create_from_color_and_depth(color_raw, depth_raw, depth_scale=1.0)
+        rgbd_image = o3d.geometry.RGBDImage.create_from_color_and_depth(color_raw, depth_raw, depth_scale=args.depth_scale)
 
         all_color.append(color_raw)
         all_depth.append(depth_raw)
         all_rgbd.append(rgbd_image)
         print(rgbd_image)
-    # draw_image(all_rgbd[0])
+    draw_image(all_rgbd[0])
     return all_color, all_depth, all_rgbd
 
 # 나중에 파일 로드해서 읽어오는 방식으로 수정
@@ -99,7 +106,7 @@ def draw_pcd(args):
     ori_size = (1920, 1440)
     size = (640, 480)
     intr = load_intrinsic(args)
-    extrin = load_extrinsic(args)
+    # extrin = load_extrinsic(args)
 
     # for rgbd_image in enumerate(all_rgbd):
     for i in range(len(all_rgbd)):
@@ -107,11 +114,11 @@ def draw_pcd(args):
         cam_intr.intrinsic_matrix = intr
         cam = o3d.camera.PinholeCameraParameters()
         cam.intrinsic = cam_intr
-        cam.extrinsic = extrin[i]   #np.array([[0., 0., 0., 0.], [0., 0., 0., 0.], [0., 0., 0., 0.], [0., 0., 0., 1.]])
+        # cam.extrinsic = extrin[i]   #np.array([[0., 0., 0., 0.], [0., 0., 0., 0.], [0., 0., 0., 0.], [0., 0., 0., 1.]])
         pcd = o3d.geometry.PointCloud.create_from_rgbd_image(
             all_rgbd[i],
             cam.intrinsic,
-            cam.extrinsic
+            # cam.extrinsic
         )
         # Flip it, otherwise the pointcloud will be upside down
         pcd.transform([[1, 0, 0, 0],
@@ -119,11 +126,15 @@ def draw_pcd(args):
                        [0, 0, -1, 0],
                        [0, 0, 0, 1]])
         all_pcd += pcd
-    all_pcd_down = all_pcd.voxel_down_sample(voxel_size=0.0005)
-    #all_pcd_down = all_pcd
+    all_pcd_down = all_pcd.voxel_down_sample(voxel_size=0.0005) if args.ptd_down_sample else all_pcd
     o3d.visualization.draw_geometries([all_pcd_down]) #,zoom=0.35) zoom error
 
-# python pointcloud/create_rgbdepth2pointcloud.py --extrinsic extrinsic.txt --expname llff_lab01
+# python pointcloud/create_rgbdepth2pointcloud.py --extrinsic transforms_test.txt --expname llff_main_computers_03
+# python pointcloud/create_rgbdepth2pointcloud.py --expname arkit_llff_main_computers02_novel --ptd_down_sample False
+# python pointcloud/create_rgbdepth2pointcloud.py --expname arkit_llff_main_computers02_test
+# python pointcloud/create_rgbdepth2pointcloud.py --expname iphone_llff_main_computers02_novel
+# python pointcloud/create_rgbdepth2pointcloud.py --expname iphone_llff_main_computers02_test
+
 if __name__=='__main__':
     parser = config_parser()
     args = parser.parse_args()

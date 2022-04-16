@@ -21,14 +21,14 @@ def main():
         m.load_dataset(opt,eval_split="test")
         m.build_networks(opt)
 
-        if opt.model=="barf":
-            m.generate_videos_pose(opt)
-            # m.restore_checkpoint(opt)
-            m.evaluate_ckt(opt)
-
-        m.restore_checkpoint(opt)
-        if opt.data.dataset in ["blender","llff","arkit","iphone"]:
-            m.evaluate_full(opt)
+        # if opt.model=="barf":
+        #     m.generate_videos_pose(opt)
+        #     m.restore_checkpoint(opt)
+        #     m.evaluate_ckt(opt)
+        #
+        # m.restore_checkpoint(opt)
+        # if opt.data.dataset in ["blender","llff","arkit","iphone"]:
+        #     m.evaluate_full(opt)
 
         m.generate_videos_synthesis(opt)
 

@@ -12,6 +12,9 @@ import mcubes
 
 from util import log,debug
 
+# python3 extract_mesh.py --group=arkit --model=barf --yaml=barf_arkit --name=llff_main_computers_03 --data.scene=llff_main_computers --data.val_sub= --resume
+# python3 extract_mesh.py --group=blender --model=barf --yaml=barf_blender --name=lego --data.scene=lego --data.val_sub= --resume
+
 opt_cmd = options.parse_arguments(sys.argv[1:])
 opt = options.set(opt_cmd=opt_cmd)
 
@@ -19,11 +22,11 @@ with torch.cuda.device(opt.device),torch.no_grad():
 
     model = importlib.import_module("model.{}".format(opt.model))
     m = model.Model(opt)
-
+    m.load_dataset(opt, eval_split="test") # 여기 추가
     m.build_networks(opt)
     m.restore_checkpoint(opt)
-
     t = torch.linspace(*opt.trimesh.range,opt.trimesh.res+1) # the best range might vary from model to model
+
     query = torch.stack(torch.meshgrid(t,t,t),dim=-1)
     query_flat = query.view(-1,3)
 
