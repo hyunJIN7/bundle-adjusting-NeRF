@@ -229,10 +229,23 @@ def process_arkit_data(args,ori_size=(1920, 1440), size=(640, 480)):
     test_indexs.sort()
     iphone_train_val = np.concatenate((train_indexs,val_indexs))
     iphone_train_val.sort()
-    # print(iphone_train_val)
+
+    # transform.txt 파일에 index 있긴하지만 nerf-- format 따르기 위해 따로 index.txt 만들어주기 위해
+    def save_image_index(opt='train', indexs=[]):
+        index_fild = os.path.join(basedir, '{}_ids.txt'.format(opt))
+        lines = []
+        lines.append(' '.join(indexs[i]) + '\n'  for i in range(len(indexs)))
+        with open(index_fild, 'w') as f:
+            f.writelines(lines)
+    save_image_index('train',train_indexs)
+    save_image_index('val', val_indexs)
+    save_image_index('test', test_indexs)
 
     #test로 셀렉된 번호에 대해서 all_raw_cam_pose,sync_timestamp_name에서 데이터 뽑아
-    """final select image,keyframe_poses for test data"""
+    """
+        final select image,keyframe_poses for test data
+        test pose는 select 된 pose가 아닌 sync 맞춘 전체 pose 데이터에서 추출하는 것이기 때문
+    """
     test_imgs = []
     test_poses = []
     test_timestamp_name = []
