@@ -234,7 +234,10 @@ def process_arkit_data(args,ori_size=(1920, 1440), size=(640, 480)):
     def save_image_index(opt='train', indexs=[]):
         index_fild = os.path.join(basedir, '{}_ids.txt'.format(opt))
         lines = []
-        lines.append(' '.join(indexs[i]) + '\n'  for i in range(len(indexs)))
+        # lines.append(' '.join([str(indexs[i])]) + '\n' for i in range(len(indexs)))  # error
+        for i in range(len(indexs)):
+            line = [str(indexs[i])]
+            lines.append(' '.join(line) + '\n')
         with open(index_fild, 'w') as f:
             f.writelines(lines)
     save_image_index('train',train_indexs)
