@@ -40,9 +40,11 @@ test data는 싱크 맞춘 데이터에서 개수 맞춰 추출
  
  `- process_arkit_data3.py `의 key frame select :
  경우 코드의 목적이 optitrack에서 취득한 포즈와 비교하기 위해 N frame 마다 key frame select을 진행.
+ 
  일단 optitrack을 10Hz로 포즈 정보 추출하고 
  ios_logger는 30Hz syncedpose에서 30 frame마다 key frame select해서 1Hz로 만들고 
- 이 ios_logger key frame pose의 timestamp와 opitrack의 time 스탬프 비교해 가장 가까운 시간의 optitrack pose 정보 저장하는 코드 작상해야해
+ 이 ios_logger key frame pose의 timestamp와 opitrack의 time 스탬프 비교해 
+ 가장 가까운 시간의 optitrack pose 정보 저장하는 코드 작상해야해
 
 
 
