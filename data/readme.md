@@ -26,8 +26,24 @@ test data는 싱크 맞춘 데이터에서 개수 맞춰 추출
 train : val : test = 0.9 : 0.1(4개만씀 blender옵션에서) : 0.2  비율은 바로 조절 가능
 train,val 데이터는 select keyframe에서 비율 맞춰서 추출
 test data는 싱크 맞춘 데이터에서 개수 맞춰 추출
+
 - process_arkit_data_frame3.py : [right,up,back] 그대로 저장하되 keframe select은 every 30 frames for opti-track (선택 프레임 주기 변)
 데이터를 every n frame 마다 추출
+
+#### process_arkit_frame 설명
+- `Frame.tx`  : 30Hz (이미지가 30hz)  
+- `ARpose.txt` : 60Hz
+- `SyncedPoses.txt` : 30 Hz, 이미지와 포즈의 sync를 맞추고 저장되는 이미지와 포즈 정보
+
+ `- process_arkit_data.py ` 의 key frame select :  
+ SyncedPoses에서 포즈 정보에서 min_angle_keyframe,min_distance_keyframe 값 넘는 포즈만 셀랙
+ 
+ `- process_arkit_data3.py `의 key frame select :
+ 경우 코드의 목적이 optitrack에서 취득한 포즈와 비교하기 위해 N frame 마다 key frame select을 진행.
+ 일단 optitrack을 10Hz로 포즈 정보 추출하고 
+ ios_logger는 30Hz syncedpose에서 30 frame마다 key frame select해서 1Hz로 만들고 
+ 이 ios_logger key frame pose의 timestamp와 opitrack의 time 스탬프 비교해 가장 가까운 시간의 optitrack pose 정보 저장하는 코드 작상해야해
+
 
 
 ### Dataset format
