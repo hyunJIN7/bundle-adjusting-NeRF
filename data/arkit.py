@@ -99,12 +99,12 @@ class Dataset(base.Dataset):
         intr[1, :] /= (ori_size[1] / size[1])  #resize 전 크기가 orgin_size 이기 때문에
 
         pose_raw = torch.tensor(self.list[idx],dtype=torch.float32)
-        pose = self.parse_raw_camera(opt,pose_raw)
+        pose = self.parse_raw_camera(opt,pose_raw) #pose_raw (3,4)
         return intr,pose
 
     # [right, forward, up]
     def parse_raw_camera(self,opt,pose_raw):
-        pose_flip = camera.pose(R=torch.diag(torch.tensor([1,-1,-1])))
-        pose = camera.pose.compose([pose_flip,pose_raw[:3]])  # [right, forward, up]
+        pose_flip = camera.pose(R=torch.diag(torch.tensor([1,-1,-1]))) #(3,4)  [[1., 0., 0., 0.],[0., -1., 0., 0.],[0., 0., -1., 0.]]
+        pose = camera.pose.compose([pose_flip,pose_raw[:3]])  # [right,up,back]->[right, down, forward] , pose_raw[:3]=pose_flip=(3,4),(3,4)
         pose = camera.pose.invert(pose)  #아마 c2w->w2c?
         return pose

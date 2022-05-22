@@ -15,7 +15,7 @@ from skimage import img_as_ubyte
 """
 [right,up,back]
 process_arkit_data_frame2 거친후 
-[right,forward,up]
+[right,forward,up]???? 
 """
 
 # python run_nerf.py --expname computer

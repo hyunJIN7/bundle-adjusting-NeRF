@@ -41,7 +41,7 @@ class Pose():
         pose_inv = self(R=R_inv,t=t_inv)
         return pose_inv
 
-    def compose(self,pose_list):
+    def compose(self,pose_list): #pose_list = [pose_flip,pose_raw[:3]]
         # compose a sequence of poses together
         # pose_new(x) = poseN o ... o pose2 o pose1(x)
         pose_new = pose_list[0]   # in novel view, [pose_shift,pose_rot,pose_shift2]
@@ -49,13 +49,18 @@ class Pose():
             pose_new = self.compose_pair(pose_new,pose)
         return pose_new
 
-    def compose_pair(self,pose_a,pose_b):
+    def compose_pair(self,pose_a,pose_b): #pose_new,pose
         # pose_new(x) = pose_b o pose_a(x)
         R_a,t_a = pose_a[...,:3],pose_a[...,3:]
         R_b,t_b = pose_b[...,:3],pose_b[...,3:]
         R_new = R_b@R_a
         t_new = (R_b@t_a+t_b)[...,0]
         pose_new = self(R=R_new,t=t_new)
+        """
+            pose_new = torch.empty(3, 4)
+            pose_new[...,:3] = R_new
+            pose_new[...,3:] = t_new
+        """
         return pose_new
 
 class Lie():

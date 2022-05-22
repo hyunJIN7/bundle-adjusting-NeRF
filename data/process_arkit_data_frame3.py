@@ -11,6 +11,8 @@ import cv2
 from transforms3d.quaternions import quat2mat
 from skimage import img_as_ubyte
 
+from bisect import bisect_left
+
 """
 [right,up,back]
 keframe select : every 30 frames for opti-track
@@ -39,6 +41,10 @@ def config_parser():
     parser.add_argument("--_data_frame_interval", type=int, default=30,
                         help='key frame interval to sync with the opti-track')
 
+    # optitrack
+    parser.add_argument("--use_optitrack", type=bool, default=False)
+    parser.add_argument("--opti_pose_fanme", type=str, default='opti_pose_truck02_996.txt',
+                        help='optitrack file name')
 
     return parser
 
@@ -191,10 +197,9 @@ def process_arkit_data(args,ori_size=(1920, 1440), size=(640, 480)):
 
     """Keyframes selection
         arkit 30Hz 라 가정할때 
-        30개당 하나씩 추출. 0번째 추출안함.
-        29 59 89
+        30개당 하나씩 추출. 0번째 추출.
     """
-    all_ids = [i for i in range(len(all_cam_pose)) if (i+1)%args.data_frame_interval == 0 ]
+    all_ids = [i for i in range(len(all_cam_pose)) if i%args.data_frame_interval == 0]
 
     """final select image,keyframe_poses  for train,val data"""
     keyframe_imgs = []
@@ -273,7 +278,6 @@ def process_arkit_data(args,ori_size=(1920, 1440), size=(640, 480)):
             if opt != 'test': # for iphone
                 imageio.imwrite('{}/{}.jpg'.format(iphone_image_dir, str(int(all_cam_timestamp_name_pose[i, 1])).zfill(5)),
                                 img_as_ubyte(images[i]))
-            #TODO: timesatmp랑 이미지 번호 같이 넣자
             line.append(str(all_cam_timestamp_name_pose[i,0])) # timestamp
             line.append(opt+'/' + str(int(all_cam_timestamp_name_pose[i,1]) ).zfill(5) ) # image name
             for j in range(3):
@@ -308,8 +312,47 @@ def process_arkit_data(args,ori_size=(1920, 1440), size=(640, 480)):
     with open(iphone_pose_fanme, 'w') as f:
         f.writelines(iphone_poses)
 
-# cd data 한 다음에 이 코드 실행해야하나봐 경로 이상해
-# python process_arkit_data.py --expname half_box
+    # optitrack data 있다면 sync 맞춘 optitrack 포즈 저장
+    #train,val,test 에 대해서 다 찾아야해.
+    if args.use_optitrack :
+        # optitrack file 읽어오기
+        opti_pose_file= os.path.join(basedir, args.opti_pose_fanme)
+        assert os.path.isfile(opti_pose_file), "camera info:{} not found".format(opti_pose_file)
+        with open(opti_pose_file, "r") as f:
+            opti_lines_list = f.readlines()
+        opti_lines = [] # optitrack data
+        for line in opti_lines_list:
+            line_data_list = line.split(',')
+            if len(line_data_list) == 0:
+                continue
+            opti_lines.append([float(i) for i in line_data_list])
+
+        sync_arkit_with_optitrack(basedir,'train',train_indexs , keyframe_timestamp_name[val_indexs][:,0] , opti_lines)
+
+def nearest(s,ts):
+    # Given a presorted list of timestamps:  s = sorted(index)
+    i = bisect_left(s, ts)
+    return min(s[max(0, i-1): i+2], key=lambda t: abs(ts - t))
+
+def sync_arkit_with_optitrack(dir,opt='train',index=[],arkit_timestamp=[] , opti_lines=[]):
+    """
+        optitrack 과 arkit sync 맞추는 코드
+        train,val,test 에 대해서 다 찾아야해.
+        그 train,val,test 각각의 인덱스 있으니까 그 인덱스의 요소와
+        str(all_cam_timestamp_name_pose[i,0] 이 값이랑 optitrack 값이랑 비교하면 되겠다.
+    """
+
+    #arkit time stamp
+    # arkit_timestamp[0]
+    lines = []
+    for i in range(len(index)):
+        num = nearest(opti_lines[:,0]  , arkit_timestamp[i] )
+
+    opti_pose_file = os.path.join(dir, 'opti_transforms_{}.txt'.format(opt))
+
+
+    # cd data 한 다음에 이 코드 실행해야하나봐 경로 이상해
+# python process_arkit_data_frame3.py --expname half_box
 # 다 실행한 이후엔 cd ../ 해주고
 if __name__ == '__main__':
     parser = config_parser()

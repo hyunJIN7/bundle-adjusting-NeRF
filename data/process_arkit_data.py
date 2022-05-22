@@ -14,11 +14,11 @@ from skimage import img_as_ubyte
 
 """
 [right,up,back]
-원본대로 로드 후 키프레임 셀랙 할때만 [right,forward,up]로 진행하고
+원본대로 로드 후 키프레임 셀랙 할때만 [right,forward,up]??로 진행하고
 pose 저장은  [right,up,back]
 """
 # cd data 한 다음에 이 코드 실행해야하나봐 경로 이상해
-# python process_arkit_data.py --expname llff_main_computers
+# python process_arkit_data.py --expname llff_main_computers02
 # 다 실행한 이후엔 cd ../ 해주고
 def config_parser():
     import configargparse
