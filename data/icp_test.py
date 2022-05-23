@@ -102,8 +102,8 @@ def test_icp(opti='train',arkit_line=[],opti_line=[]):
 
     opti_pose = np.reshape(opti_line[:,1:], (3,4)) #(n,3,4)?
     opti_pose = camera.to_hom(torch.from_numpy(opti_pose)) #(n,4,4)??
-    #final_RT (4,4) make (n,4,4)??
-    opti_pose = final_RT @ opti_pose # dim???....
+    #final_RT (4,4) make (n,4,4)?
+    opti_pose = final_RT @ opti_pose # dim???..
     # use camera.pose.compose
 
 
