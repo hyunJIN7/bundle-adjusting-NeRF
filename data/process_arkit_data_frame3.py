@@ -18,7 +18,7 @@ from bisect import bisect_left
 keframe select : every 30 frames for opti-track
 """
 # cd data 한 다음에 이 코드 실행해야하나봐 경로 이상해
-# python process_arkit_data.py --expname stair_llff01
+# python process_arkit_data3.py --expname stair_llff01
 # 다 실행한 이후엔 cd ../ 해주고
 def config_parser():
     import configargparse
@@ -45,7 +45,7 @@ def config_parser():
     parser.add_argument("--use_optitrack", type=bool, default=False)
     parser.add_argument("--opti_pose_fanme", type=str, default='opti_pose_truck02_996.txt',
                         help='optitrack file name')
-
+    # python process_arkit_data.py --expname stair_llff01
     return parser
 
 def rotx(t):
@@ -332,7 +332,20 @@ def process_arkit_data(args,ori_size=(1920, 1440), size=(640, 480)):
 def nearest(s,ts):
     # Given a presorted list of timestamps:  s = sorted(index)
     i = bisect_left(s, ts)
-    return min(s[max(0, i-1): i+2], key=lambda t: abs(ts - t))
+    return min(s[max(0, i-1): i+2], key=lambda t: abs(ts - t)) #이건 index아닌 값 출력
+# def nearest(s,ts):
+#     return min(s, key=lambda t: abs(ts - t)) #이건 index아닌 값 출력
+
+def nearest_index(s,ts):
+    # Given a presorted list of timestamps:  s = sorted(index)
+    i = bisect_left(s, ts)
+    min_time,min_index=(s[i],i)
+    for j in range(max(0, i-1), i+2): #j는 index
+      if abs(ts - s[j]) < min_time :
+        min_time = abs(ts - s[j])
+        min_index=j
+    return min_index
+
 
 def sync_arkit_with_optitrack(dir,opt='train',index=[],arkit_timestamp=[] , opti_lines=[]):
     """
@@ -346,7 +359,7 @@ def sync_arkit_with_optitrack(dir,opt='train',index=[],arkit_timestamp=[] , opti
     # arkit_timestamp[0]
     lines = []
     for i in range(len(index)):
-        num = nearest(opti_lines[:,0]  , arkit_timestamp[i] )
+        num = nearest_index(opti_lines[:,0]  , arkit_timestamp[i] )
 
     opti_pose_file = os.path.join(dir, 'opti_transforms_{}.txt'.format(opt))
 
