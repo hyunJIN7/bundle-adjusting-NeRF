@@ -29,24 +29,34 @@ def config_parser():
                         help='input data directory')
 
     #keyframe options
-    # 0.5,0.01 : 204,104
     parser.add_argument("--min_angle_keyframe", type=float, default=15,
                         help='minimum angle between key frames')
     parser.add_argument("--min_distance_keyframe", type=float, default=0.1,
                         help='minimum distance between key frames')
 
-    #data
+    #data option
     parser.add_argument("--data_val_ratio", type=float, default=0.1,
                         help='ratio of sequence split for validation')
     parser.add_argument("--_data_frame_interval", type=int, default=30,
                         help='key frame interval to sync with the opti-track')
 
-    # optitrack
+    # optitrack option
     parser.add_argument("--use_optitrack", type=bool, default=False)
-    parser.add_argument("--opti_pose_fanme", type=str, default='opti_pose_truck02_996.txt',
-                        help='optitrack file name')
-    # python process_arkit_data.py --expname stair_llff01
+    parser.add_argument("--opti_pose_fanme", type=str, default='opti_pose_truck02_996.txt',help='optitrack file name')
+    # python process_arkit_data.py --expname opti_truck02 --use_optitrack=True --opti_pose_fanme=opti_pose_truck02_996.txt
     return parser
+
+def nearest(s,ts):
+    # Given a presorted list of timestamps:  s = sorted(index)
+    i = bisect_left(s, ts)
+    return min(s[max(0, i-1): i+2], key=lambda t: abs(ts - t)) #이건 index아닌 값 출력
+# def nearest(s,ts):
+#     return min(s, key=lambda t: abs(ts - t)) #이건 index아닌 값 출력
+
+def nearest_index(s,ts):
+    # Given a presorted list of timestamps:  s = sorted(index)
+    time_list = list(map(lambda t: abs(ts - t), s))
+    return time_list.index(min(time_list))
 
 def rotx(t):
     ''' 3D Rotation about the x-axis. '''
@@ -327,20 +337,9 @@ def process_arkit_data(args,ori_size=(1920, 1440), size=(640, 480)):
                 continue
             opti_lines.append([float(i) for i in line_data_list])
 
-        sync_arkit_with_optitrack(basedir,'train',train_indexs , keyframe_timestamp_name[val_indexs][:,0] , opti_lines)
-
-def nearest(s,ts):
-    # Given a presorted list of timestamps:  s = sorted(index)
-    i = bisect_left(s, ts)
-    return min(s[max(0, i-1): i+2], key=lambda t: abs(ts - t)) #이건 index아닌 값 출력
-# def nearest(s,ts):
-#     return min(s, key=lambda t: abs(ts - t)) #이건 index아닌 값 출력
-
-def nearest_index(s,ts):
-    # Given a presorted list of timestamps:  s = sorted(index)
-    time_list = list(map(lambda t: abs(ts - t), s))
-    return time_list.index(min(time_list))
-
+        sync_arkit_with_optitrack(basedir,'train',train_indexs , keyframe_timestamp_name[train_indexs][:,0], opti_lines)
+        sync_arkit_with_optitrack(basedir, 'val', val_indexs, keyframe_timestamp_name[val_indexs][:, 0], opti_lines)
+        sync_arkit_with_optitrack(basedir, 'val', test_indexs, test_timestamp_name[:, 0], opti_lines)
 
 def sync_arkit_with_optitrack(dir,opt='train',index=[],arkit_timestamp=[] , opti_lines=[]):
     """
@@ -349,17 +348,16 @@ def sync_arkit_with_optitrack(dir,opt='train',index=[],arkit_timestamp=[] , opti
         그 train,val,test 각각의 인덱스 있으니까 그 인덱스의 요소와
         str(all_cam_timestamp_name_pose[i,0] 이 값이랑 optitrack 값이랑 비교하면 되겠다.
     """
-
-    #arkit time stamp
-    # arkit_timestamp[0]
     lines = []
     for i in range(len(index)):
-        num = nearest_index(opti_lines[:,0]  , arkit_timestamp[i] )
-
+        min_index = nearest_index(opti_lines[:,0], arkit_timestamp[i])
+        line = [str(a) for a in opti_lines[i]]
+        lines.append(' '.join(line)+'\n')
     opti_pose_file = os.path.join(dir, 'opti_transforms_{}.txt'.format(opt))
+    with open(opti_pose_file, 'w') as f:
+        f.writelines(lines)
 
-
-    # cd data 한 다음에 이 코드 실행해야하나봐 경로 이상해
+# cd data 한 다음에 이 코드 실행해야하나봐 경로 이상해
 # python process_arkit_data_frame3.py --expname half_box
 # 다 실행한 이후엔 cd ../ 해주고
 if __name__ == '__main__':
