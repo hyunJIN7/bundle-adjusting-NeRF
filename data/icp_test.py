@@ -1,6 +1,13 @@
 import numpy as np
 import time
+
+import torch
+
 import icp
+
+import camera
+
+"icp for ios_logger and optitrack"
 
 # Constants
 N = 10  # 데이터셋 크기
@@ -62,52 +69,43 @@ def test_best_fit():
     return
 
 
-def test_icp():
-    # 임의 데이터셋 생성
-    A = np.random.rand(N, dim)
+def test_icp(opti='train',arkit_line=[],opti_line=[]):
+    # opti_transforms_train.txt vs transforms_train.txt
+    # opti :  timestamp r11 r12 r13 x r21 r22 r23 y r31 r32 r33 z
+    # arkit : timestamp imagename r11 r12 r13 x r21 r22 r23 y r31 r32 r33 z
+
+    #TODO : shape check
+    #TODO: A,B order check
+    opti_raw_xyz = [opti_line[:,4], opti_line[:,8], opti_line[:,12]]
+    arkit_xyz = [arkit_line[:,5], arkit_line[:,9], arkit_line[:,13]]
 
     total_time = 0
     final_RT = []
     for i in range(num_tests):
-        B = np.copy(A)
-
-        # 테스트 데이터셋 이동
-        t = np.random.rand(dim) * translation
-        B += t
-
-        # 회전
-        R = rotation_matrix(np.random.rand(dim), np.random.rand() * rotation)
-        B = np.dot(R, B.T).T
-
-        # 노이즈 추가
-        B += np.random.randn(N, dim) * noise_sigma
-
-        # 위치 섞음
-        np.random.shuffle(B)
-
         # ICP 알고리즘 실행
-        start = time.time()
-        T, distances, iterations = icp.icp(B, A, tolerance=0.000001) #T(4,4)
+        T, distances, iterations = icp.icp(opti_raw_xyz, arkit_xyz, tolerance=0.000001) #T(4,4)
         final_RT = T
-        total_time += time.time() - start
+
 
         # 동차좌표 생성
-        C = np.ones((N, 4))
-        C[:, 0:3] = np.copy(B)
-
-        # 변환행렬 적용
-        C = np.dot(T, C.T).T
+        # C = np.ones((N, 4))
+        # C[:, 0:3] = np.copy(opti_raw_xyz)
+        # # 변환행렬 적용
+        # C = np.dot(T, C.T).T
 
         print('distance: {:.3}'.format(np.mean(distances)))
-
         assert np.mean(distances) < 6 * noise_sigma  # 평균 에러
-        assert np.allclose(T[0:3, 0:3].T, R, atol=6 * noise_sigma)  # T and R should be inverses
-        assert np.allclose(-T[0:3, 3], t, atol=6 * noise_sigma)  # T and t should be inverses
+        # assert np.allclose(T[0:3, 0:3].T, R, atol=6 * noise_sigma)  # T and R should be inverses
+        # assert np.allclose(-T[0:3, 3], t, atol=6 * noise_sigma)  # T and t should be inverses
 
-    #RT(4,4) -> (1,12) txt file
-    print('icp time: {:.3}'.format(total_time / num_tests))
+    # print('icp time: {:.3}'.format(total_time / num_tests))
 
-    final_RT = np.reshape(final_RT,(1,-1))
+    opti_pose = np.reshape(opti_line[:,1:], (3,4)) #(n,3,4)?
+    opti_pose = camera.to_hom(torch.from_numpy(opti_pose)) #(n,4,4)??
+    #final_RT (4,4) make (n,4,4)??
+    opti_pose = final_RT @ opti_pose # dim???....
+    # use camera.pose.compose?
+
 
 
     return

@@ -41,7 +41,7 @@ class Pose():
         pose_inv = self(R=R_inv,t=t_inv)
         return pose_inv
 
-    def compose(self,pose_list): #pose_list = [pose_flip,pose_raw[:3]]
+    def compose(self,pose_list):
         # compose a sequence of poses together
         # pose_new(x) = poseN o ... o pose2 o pose1(x)
         pose_new = pose_list[0]   # in novel view, [pose_shift,pose_rot,pose_shift2]

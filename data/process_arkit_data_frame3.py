@@ -12,10 +12,13 @@ from transforms3d.quaternions import quat2mat
 from skimage import img_as_ubyte
 
 from bisect import bisect_left
+from icp_test import *
 
 """
 [right,up,back]
 keframe select : every 30 frames for opti-track
+
+code 깔끔하지 않음…
 """
 # cd data 한 다음에 이 코드 실행해야하나봐 경로 이상해
 # python process_arkit_data3.py --expname stair_llff01
@@ -268,7 +271,7 @@ def process_arkit_data(args,ori_size=(1920, 1440), size=(640, 480)):
     if not os.path.exists(iphone_image_dir):
         os.mkdir(iphone_image_dir)
     iphone_pose_fanme = os.path.join(basedir , 'transforms_iphone.txt')
-    iphone_poses = []
+    iphone_poses_str = []  # for barf identity experiment
 
     # select pose,image 파일 저장
     def save_keyframe_data(dir, opt='train', index=[] ,images=[], pose=[],all_cam_timestamp_name_pose=[]):
@@ -278,37 +281,49 @@ def process_arkit_data(args,ori_size=(1920, 1440), size=(640, 480)):
             os.mkdir(image_dir)
 
         lines = []
+        arkit_pose = []
         for i in range(len(index)):
             line = []
+            pose_line = []
             imageio.imwrite('{}/{}.jpg'.format(image_dir,str(int(all_cam_timestamp_name_pose[i,1]) ).zfill(5)), img_as_ubyte(images[i]))
             if opt != 'test': # for iphone
                 imageio.imwrite('{}/{}.jpg'.format(iphone_image_dir, str(int(all_cam_timestamp_name_pose[i, 1])).zfill(5)),
                                 img_as_ubyte(images[i]))
             line.append(str(all_cam_timestamp_name_pose[i,0])) # timestamp
             line.append(opt+'/' + str(int(all_cam_timestamp_name_pose[i,1]) ).zfill(5) ) # image name
+            pose_line.append(all_cam_timestamp_name_pose[i,0])
+            pose_line.append(all_cam_timestamp_name_pose[i,1])
+
+
             for j in range(3):
                 for k in range(4) :
                     line.append(str(pose[i][j][k]))
+                    pose_line.append(pose[i][j][k])
             #line =np.concatenate((pose[i][0,:] ,pose[i][1,:] , pose[i][2,:]) , axis=0  )        #pose[i][0,:3] + pose[i][1,:3] + pose[i][2,:3] \
             lines.append(' '.join(line) + '\n') # (3x4)shape이 row 한줄로 이어 붙임.
+            arkit_pose.append(pose_line)
+
             if opt != 'test': # for iphone
-                iphone_poses.append(' '.join(line) + '\n')
+                iphone_poses_str.append(' '.join(line) + '\n')
+
         with open(pose_file, 'w') as f:
             f.writelines(lines)
 
-    save_keyframe_data(basedir,'train',
+        return np.array(arkit_pose)
+
+    arkit_pose_train = save_keyframe_data(basedir,'train',
                        train_indexs,
                        keyframe_imgs[train_indexs],
                        keyframe_poses[train_indexs],
                        keyframe_timestamp_name[train_indexs]);
 
-    save_keyframe_data(basedir,'val',
+    arkit_pose_val = save_keyframe_data(basedir,'val',
                        val_indexs,
                        keyframe_imgs[val_indexs],
                        keyframe_poses[val_indexs],
                        keyframe_timestamp_name[val_indexs]);
 
-    save_keyframe_data(basedir,'test',
+    arkit_pose_test = save_keyframe_data(basedir,'test',
                        test_indexs,
                        test_imgs,
                        test_poses,
@@ -316,7 +331,7 @@ def process_arkit_data(args,ori_size=(1920, 1440), size=(640, 480)):
 
     #for transforms_iphone.txt
     with open(iphone_pose_fanme, 'w') as f:
-        f.writelines(iphone_poses)
+        f.writelines(iphone_poses_str)
 
     # optitrack data 있다면 sync 맞춘 optitrack 포즈 저장
     #train,val,test 에 대해서 다 찾아야해.
@@ -333,13 +348,14 @@ def process_arkit_data(args,ori_size=(1920, 1440), size=(640, 480)):
                 continue
             opti_lines.append([float(i) for i in line_data_list])
 
-        sync_arkit_with_optitrack(basedir,'train',train_indexs , keyframe_timestamp_name[train_indexs][:,0], opti_lines)
-        sync_arkit_with_optitrack(basedir, 'val', val_indexs, keyframe_timestamp_name[val_indexs][:, 0], opti_lines)
-        sync_arkit_with_optitrack(basedir, 'test', test_indexs, test_timestamp_name[:, 0], opti_lines)
+        opti_raw_pose_train = sync_arkit_with_optitrack(basedir,'train',train_indexs , keyframe_timestamp_name[train_indexs][:,0], opti_lines)
+        opti_raw_pose_val = sync_arkit_with_optitrack(basedir, 'val', val_indexs, keyframe_timestamp_name[val_indexs][:, 0], opti_lines)
+        opti_raw_pose_test = sync_arkit_with_optitrack(basedir, 'test', test_indexs, test_timestamp_name[:, 0], opti_lines)
 
         #ICP
-        # RT = test_icp(arkit_pose,opti_pose)
-        # icp_opti_pose =
+        opti_pose_train = test_icp('train',arkit_pose_train,opti_raw_pose_train)
+
+
 
 def sync_arkit_with_optitrack(dir,opt='train',index=[],arkit_timestamp=[] , opti_lines=[]):
     """
@@ -349,14 +365,17 @@ def sync_arkit_with_optitrack(dir,opt='train',index=[],arkit_timestamp=[] , opti
         str(all_cam_timestamp_name_pose[i,0] 이 값이랑 optitrack 값이랑 비교하면 되겠다.
     """
     lines = []
+    opti_pose = []
     opti_lines = np.array(opti_lines)
     for i in range(len(index)):
         min_index = nearest_index(opti_lines[:,0], arkit_timestamp[i])
+        opti_pose.append(opti_lines[min_index])
         line = [str(a) for a in opti_lines[min_index]]
         lines.append(' '.join(line)+'\n')
     opti_pose_file = os.path.join(dir, 'opti_transforms_{}.txt'.format(opt))
     with open(opti_pose_file, 'w') as f:
         f.writelines(lines)
+    return np.array(opti_pose)
 
 # cd data 한 다음에 이 코드 실행해야하나봐 경로 이상해
 # python process_arkit_data_frame3.py --expname half_box
