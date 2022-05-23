@@ -53,3 +53,10 @@ test data는 싱크 맞춘 데이터에서 개수 맞춰 추출
 - SyncedPoses.txt : `timestamp imagenum(string) tx ty tz(m) qx qy qz qw`
 [ios_logger](https://github.com/Varvrar/ios_logger) 참고
 
+
+
+### icp
+opti_transforms_train.txt vs transforms_train.txt
+- opti :  timestamp r11 r12 r13 x r21 r22 r23 y r31 r32 r33 z
+- arkit : timestamp imagename r11 r12 r13 x r21 r22 r23 y r31 r32 r33 z
+- 기준 arkit, opti를 arkit 기준으로 
