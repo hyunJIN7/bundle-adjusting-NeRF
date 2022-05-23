@@ -29,21 +29,17 @@ def config_parser():
                         help='input data directory')
 
     #keyframe options
-    parser.add_argument("--min_angle_keyframe", type=float, default=15,
-                        help='minimum angle between key frames')
-    parser.add_argument("--min_distance_keyframe", type=float, default=0.1,
-                        help='minimum distance between key frames')
+    parser.add_argument("--data_frame_interval", type=int, default=30,
+                        help='key frame interval to sync with the opti-track')
 
     #data option
     parser.add_argument("--data_val_ratio", type=float, default=0.1,
                         help='ratio of sequence split for validation')
-    parser.add_argument("--_data_frame_interval", type=int, default=30,
-                        help='key frame interval to sync with the opti-track')
 
     # optitrack option
     parser.add_argument("--use_optitrack", type=bool, default=False)
     parser.add_argument("--opti_pose_fanme", type=str, default='opti_pose_truck02_996.txt',help='optitrack file name')
-    # python process_arkit_data.py --expname opti_truck02 --use_optitrack=True --opti_pose_fanme=opti_pose_truck02_996.txt
+    # python process_arkit_data_frame3.py --expname opti_truck02 --use_optitrack=True --opti_pose_fanme=opti_pose_truck02_996.txt
     return parser
 
 def nearest(s,ts):
@@ -332,14 +328,18 @@ def process_arkit_data(args,ori_size=(1920, 1440), size=(640, 480)):
             opti_lines_list = f.readlines()
         opti_lines = [] # optitrack data
         for line in opti_lines_list:
-            line_data_list = line.split(',')
+            line_data_list = line.split(' ')
             if len(line_data_list) == 0:
                 continue
             opti_lines.append([float(i) for i in line_data_list])
 
         sync_arkit_with_optitrack(basedir,'train',train_indexs , keyframe_timestamp_name[train_indexs][:,0], opti_lines)
         sync_arkit_with_optitrack(basedir, 'val', val_indexs, keyframe_timestamp_name[val_indexs][:, 0], opti_lines)
-        sync_arkit_with_optitrack(basedir, 'val', test_indexs, test_timestamp_name[:, 0], opti_lines)
+        sync_arkit_with_optitrack(basedir, 'test', test_indexs, test_timestamp_name[:, 0], opti_lines)
+
+        #ICP
+        # RT = test_icp(arkit_pose,opti_pose)
+        # icp_opti_pose =
 
 def sync_arkit_with_optitrack(dir,opt='train',index=[],arkit_timestamp=[] , opti_lines=[]):
     """
@@ -349,9 +349,10 @@ def sync_arkit_with_optitrack(dir,opt='train',index=[],arkit_timestamp=[] , opti
         str(all_cam_timestamp_name_pose[i,0] 이 값이랑 optitrack 값이랑 비교하면 되겠다.
     """
     lines = []
+    opti_lines = np.array(opti_lines)
     for i in range(len(index)):
         min_index = nearest_index(opti_lines[:,0], arkit_timestamp[i])
-        line = [str(a) for a in opti_lines[i]]
+        line = [str(a) for a in opti_lines[min_index]]
         lines.append(' '.join(line)+'\n')
     opti_pose_file = os.path.join(dir, 'opti_transforms_{}.txt'.format(opt))
     with open(opti_pose_file, 'w') as f:
