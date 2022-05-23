@@ -338,13 +338,8 @@ def nearest(s,ts):
 
 def nearest_index(s,ts):
     # Given a presorted list of timestamps:  s = sorted(index)
-    i = bisect_left(s, ts)
-    min_time,min_index=(s[i],i)
-    for j in range(max(0, i-1), i+2): #j는 index
-      if abs(ts - s[j]) < min_time :
-        min_time = abs(ts - s[j])
-        min_index=j
-    return min_index
+    time_list = list(map(lambda t: abs(ts - t), s))
+    return time_list.index(min(time_list))
 
 
 def sync_arkit_with_optitrack(dir,opt='train',index=[],arkit_timestamp=[] , opti_lines=[]):
