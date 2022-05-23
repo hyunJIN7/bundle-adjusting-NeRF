@@ -354,7 +354,7 @@ def process_arkit_data(args,ori_size=(1920, 1440), size=(640, 480)):
 
         #ICP
         opti_pose_train = test_icp('train',arkit_pose_train,opti_raw_pose_train)
-
+        #save opti_pose txt
 
 
 def sync_arkit_with_optitrack(dir,opt='train',index=[],arkit_timestamp=[] , opti_lines=[]):

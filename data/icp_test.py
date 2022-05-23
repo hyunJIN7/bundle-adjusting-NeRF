@@ -106,9 +106,7 @@ def test_icp(opti='train',arkit_line=[],opti_line=[]):
     opti_pose = final_RT @ opti_pose # dim???..
     # use camera.pose.compose
 
-
-
-    return
+    return opti_pose
 
 
 
