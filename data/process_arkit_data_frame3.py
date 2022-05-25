@@ -42,7 +42,7 @@ def config_parser():
     # optitrack option
     parser.add_argument("--use_optitrack", type=bool, default=False)
     parser.add_argument("--opti_pose_fanme", type=str, default='opti_pose_truck02_996.txt',help='optitrack file name')
-    # python process_arkit_data_frame3.py --expname opti_truck02 --use_optitrack=True --opti_pose_fanme=opti_pose_truck02_996.txt
+    # python process_arkit_data_frame3.py --expname opti_truck --use_optitrack=True --opti_pose_fanme=opti_pose_truck_96.txt
     return parser
 
 def nearest(s,ts):

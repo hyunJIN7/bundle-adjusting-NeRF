@@ -13,6 +13,8 @@ import util,util_vis
 from util import log,debug
 from . import nerf
 import camera
+import imageio
+import PIL
 
 # ============================ main engine for training and evaluation ============================
 
@@ -226,6 +228,12 @@ class Model(nerf.Model):
         cam_vid_fname = "{}/poses.mp4".format(opt.output_path)
         os.system("ffmpeg -y -r 30 -f concat -i {0} -pix_fmt yuv420p {1} >/dev/null 2>&1".format(list_fname,cam_vid_fname))
         os.remove(list_fname)
+
+        pose_img = []
+        for ep in ep_list:
+            pose_image_name = "{}/2d_{}.png".format(cam_path, ep)
+            pose_img.append(PIL.Image.fromarray(imageio.imread(pose_image_name)))
+        imageio.mimwrite(os.path.join(opt.output_path, 'poses.gif'), pose_img, fps=60)
 
 
     @torch.no_grad()

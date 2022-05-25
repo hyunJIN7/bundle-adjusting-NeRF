@@ -100,11 +100,18 @@ def test_icp(opti='train',arkit_line=[],opti_line=[]):
 
     # print('icp time: {:.3}'.format(total_time / num_tests))
 
-    opti_pose = np.reshape(opti_line[:,1:], (3,4)) #(n,3,4)?
-    opti_pose = camera.to_hom(torch.from_numpy(opti_pose)) #(n,4,4)??
+    opti_raw_pose = np.reshape(opti_line[:,1:], (3,4)) #(n,3,4)?
+    # opti_pose = camera.to_hom(torch.from_numpy(opti_pose)) #(n,4,4)??
     #final_RT (4,4) make (n,4,4)?
-    opti_pose = final_RT @ opti_pose # dim???..
+    opti_raw_pose = final_RT @ opti_raw_pose # dim???..
     # use camera.pose.compose
+
+    opti_pose = []
+    for i in range(len(opti_raw_pose)):
+        cam_pose = opti_raw_pose[i] #(3,4)
+        pose_new = camera.pose.compose_pair(final_RT[:3], cam_pose) #TODO : order check
+        # pose_new = np.vstack((pose_new, [0, 0, 0, 1]))
+        opti_pose.append(pose_new)
 
     return opti_pose
 
