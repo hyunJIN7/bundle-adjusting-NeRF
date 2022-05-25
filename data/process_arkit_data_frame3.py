@@ -353,9 +353,10 @@ def process_arkit_data(args,ori_size=(1920, 1440), size=(640, 480)):
         opti_raw_pose_test = sync_arkit_with_optitrack(basedir, 'test', test_indexs, test_timestamp_name[:, 0], opti_lines)
 
         #ICP
-        opti_pose_train = test_icp('train',arkit_pose_train,opti_raw_pose_train)
+        opti_pose_train = test_icp(basedir,'train',arkit_pose_train,opti_raw_pose_train)
+        opti_pose_val = test_icp(basedir, 'val', arkit_pose_train, opti_raw_pose_train)
+        opti_pose_test = test_icp(basedir, 'train', arkit_pose_train, opti_raw_pose_train)
         #save opti_pose txt
-
 
 def sync_arkit_with_optitrack(dir,opt='train',index=[],arkit_timestamp=[] , opti_lines=[]):
     """

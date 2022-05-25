@@ -9,7 +9,7 @@ import util
 from util import log,debug
 
 class Pose():
-    """
+    """pose_new
     A class of operations on camera poses (PyTorch tensors with shape [...,3,4])
     each [3,4] camera pose takes the form of [R|t]
     """

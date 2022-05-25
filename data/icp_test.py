@@ -1,11 +1,8 @@
 import numpy as np
-import time
-
+import os,sys,time
 import torch
-
 import icp
-
-import camera
+# import camera
 
 "icp for ios_logger and optitrack"
 
@@ -69,15 +66,15 @@ def test_best_fit():
     return
 
 
-def test_icp(opti='train',arkit_line=[],opti_line=[]):
+def test_icp(dir,opt='train',arkit_line=[],opti_line=[]):
     # opti_transforms_train.txt vs transforms_train.txt
     # opti :  timestamp r11 r12 r13 x r21 r22 r23 y r31 r32 r33 z
     # arkit : timestamp imagename r11 r12 r13 x r21 r22 r23 y r31 r32 r33 z
 
     #TODO : shape check
     #TODO: A,B order check
-    opti_raw_xyz = [opti_line[:,4], opti_line[:,8], opti_line[:,12]]
-    arkit_xyz = [arkit_line[:,5], arkit_line[:,9], arkit_line[:,13]]
+    opti_raw_xyz = np.array([opti_line[:,4], opti_line[:,8], opti_line[:,12]])
+    arkit_xyz = np.array([arkit_line[:,5], arkit_line[:,9], arkit_line[:,13]])
 
     total_time = 0
     final_RT = []
@@ -94,28 +91,53 @@ def test_icp(opti='train',arkit_line=[],opti_line=[]):
         # C = np.dot(T, C.T).T
 
         print('distance: {:.3}'.format(np.mean(distances)))
-        assert np.mean(distances) < 6 * noise_sigma  # 평균 에러
+        # assert np.mean(distances) < 6 * noise_sigma  # 평균 에러
         # assert np.allclose(T[0:3, 0:3].T, R, atol=6 * noise_sigma)  # T and R should be inverses
         # assert np.allclose(-T[0:3, 3], t, atol=6 * noise_sigma)  # T and t should be inverses
 
     # print('icp time: {:.3}'.format(total_time / num_tests))
 
-    opti_raw_pose = np.reshape(opti_line[:,1:], (3,4)) #(n,3,4)?
+    opti_raw_pose = np.reshape(opti_line[:,1:], (-1,3,4)) #(n,3,4)?
     # opti_pose = camera.to_hom(torch.from_numpy(opti_pose)) #(n,4,4)??
     #final_RT (4,4) make (n,4,4)?
-    opti_raw_pose = final_RT @ opti_raw_pose # dim???..
+    # opti_raw_pose = final_RT @ opti_raw_pose # dim???..
     # use camera.pose.compose
 
+    opti_raw_pose = torch.Tensor(opti_raw_pose)
+    final_RT = torch.Tensor(final_RT)
+
     opti_pose = []
+    lines = []
     for i in range(len(opti_raw_pose)):
         cam_pose = opti_raw_pose[i] #(3,4)
-        pose_new = camera.pose.compose_pair(final_RT[:3], cam_pose) #TODO : order check
-        # pose_new = np.vstack((pose_new, [0, 0, 0, 1]))
+        pose_new = compose_pair(final_RT[:3], cam_pose) #TODO : order check
+        pose_new = torch.reshape( pose_new, (1,-1))
         opti_pose.append(pose_new)
+
+        pose_new = pose_new.numpy()[0]
+        line = np.concatenate( [[opti_line[i,0]], pose_new]).astype(np.str)
+        # pose_new = pose_new.numpy()[0]
+        # line.append(str(pose_new[0,a]) for a in range(12))
+        # print(line)
+        lines.append(' '.join(line) + '\n')
+    opti_pose_file = os.path.join(dir, 'icp_opti_transforms_{}.txt'.format(opt))
+    with open(opti_pose_file, 'w') as f:
+        f.writelines(lines)
+    return np.array(opti_pose)
 
     return opti_pose
 
-
+def compose_pair(pose_a,pose_b): #pose_new,pose
+    # pose_new(x) = pose_b o pose_a(x)
+    R_a,t_a = pose_a[...,:3],pose_a[...,3:]
+    R_b,t_b = pose_b[...,:3],pose_b[...,3:]
+    R_new = R_b@R_a
+    t_new = (R_b@t_a+t_b)[...,0] #(3)
+    t_new = torch.reshape(t_new,(3,1))
+    pose_new = torch.empty(3, 4)
+    pose_new[...,:3] = R_new
+    pose_new[...,3:] = t_new
+    return pose_new
 
 if __name__ == "__main__":
     test_best_fit()
