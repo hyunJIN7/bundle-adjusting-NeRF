@@ -39,21 +39,22 @@ class Dataset(base.Dataset):
         #self.focal = 0.5*self.raw_W/np.tan(0.5*self.meta["camera_angle_x"])
 
         # for GT data(optitrack)
-        gt_pose_fname = "{}/opti_pose.txt".format(self.path)  # TODO : file name
-        gt_pose_file = os.path.join('./', gt_pose_fname)
-        if os.path.isfile(gt_pose_file): # gt file exist
-            with open(gt_pose_file, "r") as f:  # frame.txt 읽어서
-                cam_frame_lines = f.readlines()
-            cam_gt_pose = []  # time r1x y z tx r2x y z ty r3x y z tz
-            for line in cam_frame_lines:
-                line_data_list = line.split(' ')
-                if len(line_data_list) == 0:
-                    continue
-                pose_raw = np.reshape(line_data_list[1:], (3, 4))
-                cam_gt_pose.append(pose_raw)
-            cam_gt_pose = np.array(cam_pose, dtype=float)
-            self.gt_pose = cam_gt_pose
-        else: self.gt_pose = cam_pose
+        # gt_pose_fname = "{}/opti_transforms_{}.txt".format(self.path,split)
+        # gt_pose_file = os.path.join('./', gt_pose_fname)
+        # if os.path.isfile(gt_pose_file): # gt file exist
+        #     with open(gt_pose_file, "r") as f:  # frame.txt 읽어서
+        #         cam_frame_lines = f.readlines()
+        #     cam_gt_pose = []  # time r1x y z tx r2x y z ty r3x y z tz
+        #     for line in cam_frame_lines:
+        #         line_data_list = line.split(' ')
+        #         if len(line_data_list) == 0:
+        #             continue
+        #         pose_raw = np.reshape(line_data_list[1:], (3, 4))
+        #         cam_gt_pose.append(pose_raw)
+        #     cam_gt_pose = np.array(cam_pose, dtype=float)
+        #     self.gt_pose = cam_gt_pose
+        # else: self.gt_pose = cam_pose
+        self.gt_pose = cam_pose
 
         if subset: self.list = self.list[:subset] #train,val
         # preload dataset

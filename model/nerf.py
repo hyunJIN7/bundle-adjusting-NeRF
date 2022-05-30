@@ -167,7 +167,7 @@ class Model(base.Model):
                     continue
             # novel view
             if opt.data.dataset in ["iphone"]:
-                pose_GT = self.train_data.get_GT_camera_poses_iphone(opt).to(opt.device)
+                pose_GT = self.train_data.get_all_gt_camera_poses(opt).to(opt.device)
                 pose_pred=None
             else:
                 pose_pred,pose_GT = self.get_all_training_poses(opt)

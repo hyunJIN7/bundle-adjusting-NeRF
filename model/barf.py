@@ -231,7 +231,7 @@ class Model(nerf.Model):
 
         pose_img = []
         for ep in ep_list:
-            pose_image_name = "{}/2d_{}.png".format(cam_path, ep)
+            pose_image_name = "{}/{}.png".format(cam_path, ep)
             pose_img.append(PIL.Image.fromarray(imageio.imread(pose_image_name)))
         imageio.mimwrite(os.path.join(opt.output_path, 'poses.gif'), pose_img, fps=60)
 
