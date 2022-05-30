@@ -59,7 +59,7 @@ class Dataset(base.Dataset):
         # pre-iterate through all samples and group together
         self.all = torch.utils.data._utils.collate.default_collate([s for s in self])
 
-    def get_all_camera_poses(self,opt): #기본 train할때 여기 접근해서 가져오고, data 로드할때 여기 접근
+    def get_all_gt_camera_poses(self,opt): #기본 train할때 여기 접근해서 가져오고, data 로드할때 여기 접근
         if self.split == 'test':
             pose_raw_all = [torch.tensor(f, dtype=torch.float32) for f in self.cam_pose]
             pose = torch.stack([self.parse_raw_camera(opt, p) for p in pose_raw_all], dim=0)
