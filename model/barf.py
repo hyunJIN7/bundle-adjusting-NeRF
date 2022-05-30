@@ -105,7 +105,7 @@ class Model(nerf.Model):
             iphone quant_pose 연산 위해 GT data load
         """
         # get ground-truth (canonical) camera poses
-        pose_GT = self.train_data.get_GT_camera_poses_iphone(opt).to(opt.device)
+        pose_GT = self.train_data.get_all_gt_camera_poses(opt).to(opt.device)
         pose = self.graph.pose_eye
         # add learned pose correction to all training data
         pose_refine = camera.lie.se3_to_SE3(self.graph.se3_refine.weight) #embeding
