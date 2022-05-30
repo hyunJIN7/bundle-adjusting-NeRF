@@ -42,8 +42,8 @@ def config_parser():
     # optitrack option
     parser.add_argument("--use_optitrack", type=bool, default=False)
     parser.add_argument("--opti_pose_fanme", type=str, default='opti_pose_truck02_996.txt',help='optitrack file name')
-    # python process_arkit_data_frame3.py --expname opti_truck --use_optitrack=True --opti_pose_fanme=opti_pose_truck_96.txt
-    # python process_arkit_data_frame3.py --expname opti_truck_test --use_optitrack=True --opti_pose_fanme=opti_pose_truck02_996.txt
+    # python process_arkit_data_frame3.py --expname opti_truck_02 --use_optitrack=True --opti_pose_fanme=opti_pose_truck_02_96.txt
+    # python process_arkit_data_frame3.py --expname opti_truck_03 --use_optitrack=True --opti_pose_fanme=opti_pose_truck_03_96.txt
 
     # python process_arkit_data_frame3.py --expname opti_icptest3d --use_optitrack=True --opti_pose_fanme=opti_pose_icptest3d_96.txt
     # python process_arkit_data_frame3.py --expname opti_icptest2d --use_optitrack=True --opti_pose_fanme=opti_pose_icptest2d_96.txt
@@ -357,10 +357,10 @@ def process_arkit_data(args,ori_size=(1920, 1440), size=(640, 480)):
         opti_raw_pose_test = sync_arkit_with_optitrack(basedir, 'test', test_indexs, test_timestamp_name[:, 0], opti_lines)
 
         #ICP
-        opti_pose_train = test_icp(basedir,'train',arkit_pose_train,opti_raw_pose_train)
-        opti_pose_val = test_icp(basedir, 'val', arkit_pose_train, opti_raw_pose_train)
-        opti_pose_test = test_icp(basedir, 'test', arkit_pose_test, opti_raw_pose_test)
-        #save opti_pose txt
+        # opti_pose_train = test_icp(basedir,'train',arkit_pose_train,opti_raw_pose_train)
+        # opti_pose_val = test_icp(basedir, 'val', arkit_pose_train, opti_raw_pose_train)
+        # opti_pose_test = test_icp(basedir, 'test', arkit_pose_test, opti_raw_pose_test)
+        # #save opti_pose txt
 
 def sync_arkit_with_optitrack(dir,opt='train',index=[],arkit_timestamp=[] , opti_lines=[]):
     """

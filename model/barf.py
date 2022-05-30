@@ -87,10 +87,10 @@ class Model(nerf.Model):
     @torch.no_grad()
     def get_all_training_poses(self,opt):
         # get ground-truth (canonical) camera poses
-        pose_GT = self.train_data.get_all_camera_poses(opt).to(opt.device)  #(3,4)
+        pose_GT = self.train_data.get_all_gt_camera_poses(opt).to(opt.device)  #(3,4)
         # add synthetic pose perturbation to all training data
         if opt.data.dataset in ["arkit","blender"] : #TODO:check  "iphone","arkit",
-            pose = pose_GT
+            pose = self.train_data.get_all_camera_poses(opt).to(opt.device)  #(3,4)
             if opt.camera.noise:
                 pose = camera.pose.compose([self.graph.pose_noise,pose])
         else: pose = self.graph.pose_eye
