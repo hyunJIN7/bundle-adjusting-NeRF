@@ -276,7 +276,7 @@ class Model(base.Model):
             # #novel view에서 iphone도 training GT 원본 가져오게 바꿈,
             # 저 한줄코드는 nerf.py get_all_training_poses가 아닌  barf.py get_all_training_poses로 접근, 그래서 아래 조건처럼 나눔
             if opt.data.dataset in ["iphone"]:
-                pose_GT = self.train_data.get_GT_camera_poses_iphone(opt).to(opt.device)
+                pose_GT = self.train_data.get_all_gt_camera_poses(opt).to(opt.device)
                 pose_pred=None
             else:
                 pose_pred,pose_GT = self.get_all_training_poses(opt)
