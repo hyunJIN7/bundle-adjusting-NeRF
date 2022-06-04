@@ -87,26 +87,18 @@ class Model(nerf.Model):
     @torch.no_grad()
     def get_all_training_poses(self,opt):
         # get ground-truth (canonical) camera poses
-        pose_GT = self.train_data.get_all_gt_camera_poses(opt).to(opt.device)  #(3,4)
         # add synthetic pose perturbation to all training data
-        if opt.data.dataset in ["arkit","blender"] : #TODO:check  "iphone","arkit",
-            pose = self.train_data.get_all_camera_poses(opt).to(opt.device)  #(3,4)
+        if opt.data.dataset in ["blender"] :
+            pose_GT = self.train_data.get_all_camera_poses(opt).to(opt.device)
+            pose = pose_GT # self.train_data.get_all_camera_poses(opt).to(opt.device)  #(3,4)
             if opt.camera.noise:
                 pose = camera.pose.compose([self.graph.pose_noise,pose])
-        else: pose = self.graph.pose_eye
-        # add learned pose correction to all training data
-        pose_refine = camera.lie.se3_to_SE3(self.graph.se3_refine.weight) #embeding
-        pose = camera.pose.compose([pose_refine,pose]) #refine_pose와 pose 사이 pose_new(x) = poseN o ... o pose2 o pose1(x) 이렇게
-        return pose,pose_GT
-
-    @torch.no_grad()
-    def get_gt_training_poses_iphone_for_eval(self,opt):
-        """
-            iphone quant_pose 연산 위해 GT data load
-        """
-        # get ground-truth (canonical) camera poses
-        pose_GT = self.train_data.get_all_gt_camera_poses(opt).to(opt.device)
-        pose = self.graph.pose_eye
+        elif opt.data.dataset in ["arkit"] :
+            pose_GT = self.train_data.get_all_gt_camera_poses(opt).to(opt.device)  # (3,4)
+            pose = self.train_data.get_all_camera_poses(opt).to(opt.device)  #initial pose
+        else:
+            pose_GT = self.train_data.get_all_gt_camera_poses(opt).to(opt.device)  # (3,4)
+            pose = self.graph.pose_eye
         # add learned pose correction to all training data
         pose_refine = camera.lie.se3_to_SE3(self.graph.se3_refine.weight) #embeding
         pose = camera.pose.compose([pose_refine,pose]) #refine_pose와 pose 사이 pose_new(x) = poseN o ... o pose2 o pose1(x) 이렇게
@@ -144,9 +136,7 @@ class Model(nerf.Model):
     def evaluate_full(self,opt):
         self.graph.eval()
         # evaluate rotation/translation
-        if opt.data.dataset not in ["iphone"]:
-            pose, pose_GT = self.get_all_training_poses(opt)
-        else: pose, pose_GT = self.get_gt_training_poses_iphone_for_eval(opt)
+        pose, pose_GT = self.get_all_training_poses(opt) # train 과정에서 optimize한 포즈 범위, GT pose
 
         pose_aligned,self.graph.sim3 = self.prealign_cameras(opt,pose,pose_GT)
         error = self.evaluate_camera_alignment(opt,pose_aligned,pose_GT)
@@ -191,7 +181,7 @@ class Model(nerf.Model):
     @torch.no_grad()
     def generate_videos_pose(self,opt):
         self.graph.eval()
-        fig = plt.figure(figsize=(10,10) if opt.data.dataset in ["blender"] else (16,8)) #TODO : *** "arkit",
+        fig = plt.figure(figsize=(10,10) if opt.data.dataset in ["blender"] else (16,8))
         cam_path = "{}/poses".format(opt.output_path)
         os.makedirs(cam_path,exist_ok=True)
         ep_list = []
@@ -201,8 +191,8 @@ class Model(nerf.Model):
                 try: util.restore_checkpoint(opt,self,resume=ep)
                 except: continue
             # get the camera poses
-            pose,pose_ref = self.get_all_training_poses(opt)
-            if opt.data.dataset in ["arkit","blender","llff"]: #TODO : **
+            pose,pose_ref = self.get_all_training_poses(opt) #pose_ref == GT
+            if opt.data.dataset in ["iphone","arkit","blender","llff"]:
                 pose_aligned,_ = self.prealign_cameras(opt,pose,pose_ref)
                 pose_aligned,pose_ref = pose_aligned.detach().cpu(),pose_ref.detach().cpu()
                 # TODO: 여기서 원본이랑 보정된 포즈 다 그리지말고 몇개당 하나만 추출
@@ -211,7 +201,8 @@ class Model(nerf.Model):
                 dict(
                     blender=util_vis.plot_save_poses_blender,
                     llff=util_vis.plot_save_poses,
-                    arkit=util_vis.plot_save_poses, #TODO : 여기가 그 블랜터랑 포즈 결과 비주얼 다른 곳
+                    arkit=util_vis.plot_save_poses,
+                    iphone=util_vis.plot_save_poses,
                 )[opt.data.dataset](opt,fig,pose_aligned,pose_ref=pose_ref,path=cam_path,ep=ep)
             else:
                 pose = pose.detach().cpu()  # 여기서 원본이랑 보정된 포즈 다 그리지말고 몇개당 하나만 추출해서 그리자
@@ -241,7 +232,6 @@ class Model(nerf.Model):
         log.info("evaluate ckpt pose...")
         self.graph.eval()
         # 매 이터레이션마다 train pose의 ATE 평균값 계산 후 평균내서 텍스트 파일로
-        #
         pose_err_list = []  # ate는 아닌데 pose,
         for ep in range(0, opt.max_iter + 1, opt.freq.ckpt):  # 5000 간격으로
             # load checkpoint (0 is random init)
@@ -251,21 +241,17 @@ class Model(nerf.Model):
                 except:
                     continue
             # evaluate rotation/translation
-            if opt.data.dataset in ["iphone"]: #TODO: 나중에 optitrack 값 GT 로 할때 여기서 따로 로드 해주자
-                pose, pose_GT = self.get_gt_training_poses_iphone_for_eval(opt)
-            else :
-                pose, pose_GT = self.get_all_training_poses(opt)
+            pose, pose_GT = self.get_all_training_poses(opt)
             pose_aligned, self.graph.sim3 = self.prealign_cameras(opt, pose, pose_GT)
             error = self.evaluate_camera_alignment(opt, pose_aligned, pose_GT)
             rot = np.rad2deg(error.R.mean().cpu())
             trans = error.t.mean()
             pose_err_list.append(edict(ep=ep, rot=rot, trans=trans))
-
         ckpt_ate_fname = "{}/ckpt_quant_pose.txt".format(opt.output_path)
         with open(ckpt_ate_fname, "w") as file:
             for i,list in enumerate(pose_err_list):
                 file.write("{} {} {}\n".format(list.ep, list.rot, list.trans))
-        # nerf.py의 evla_everyiter로 접근
+        # nerf.py의 eval_everyiter로 접근
         super().evaluate_ckt(opt)
 
 # ============================ computation graph for forward/backprop ============================

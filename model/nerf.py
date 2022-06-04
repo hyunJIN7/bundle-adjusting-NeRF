@@ -102,13 +102,32 @@ class Model(base.Model):
                     util_vis.tb_image(opt,self.tb,step,split,"rgb_fine",rgb_map)
                     util_vis.tb_image(opt,self.tb,step,split,"invdepth_fine",invdepth_map)
 
+    # @torch.no_grad()
+    # def get_all_training_poses(self,opt):
+    #     # get ground-truth (canonical) camera poses
+    #     if opt.data.dataset in ["iphone", "arkit"] :
+    #         pose_GT = self.train_data.get_all_gt_camera_poses(opt).to(opt.device)  # gt
+    #     else :  pose_GT = self.train_data.get_all_camera_poses(opt).to(opt.device)
+    #     return None,pose_GT
     @torch.no_grad()
     def get_all_training_poses(self,opt):
         # get ground-truth (canonical) camera poses
-        if opt.data.dataset in ["iphone"]:
-            pose_GT = self.train_data.get_GT_camera_poses_iphone(opt).to(opt.device)
-        else : pose_GT = self.train_data.get_all_camera_poses(opt).to(opt.device)
-        return None,pose_GT
+        # add synthetic pose perturbation to all training data
+        if opt.data.dataset in ["blender"] :
+            pose_GT = self.train_data.get_all_camera_poses(opt).to(opt.device)
+            pose = pose_GT # self.train_data.get_all_camera_poses(opt).to(opt.device)  #(3,4)
+            if opt.camera.noise:
+                pose = camera.pose.compose([self.graph.pose_noise,pose])
+        elif opt.data.dataset in ["arkit"] :
+            pose_GT = self.train_data.get_all_gt_camera_poses(opt).to(opt.device)  # (3,4)
+            pose = self.train_data.get_all_camera_poses(opt).to(opt.device)  #initial pose
+        else:
+            pose_GT = self.train_data.get_all_gt_camera_poses(opt).to(opt.device)  # (3,4)
+            pose = self.graph.pose_eye
+        # add learned pose correction to all training data
+        pose_refine = camera.lie.se3_to_SE3(self.graph.se3_refine.weight) #embeding
+        pose = camera.pose.compose([pose_refine,pose]) #refine_pose와 pose 사이 pose_new(x) = poseN o ... o pose2 o pose1(x) 이렇게
+        return pose,pose_GT
 
     @torch.no_grad()
     def evaluate_full(self,opt,eps=1e-10):
@@ -165,12 +184,18 @@ class Model(base.Model):
                     util.restore_checkpoint(opt, self, resume=ep)  # 여기가 그파트같은데 해당 체크포인트의 리스토어
                 except:
                     continue
-            # novel view
-            if opt.data.dataset in ["iphone"]:
-                pose_GT = self.train_data.get_all_gt_camera_poses(opt).to(opt.device)
-                pose_pred=None
-            else:
-                pose_pred,pose_GT = self.get_all_training_poses(opt)
+
+            """
+                ## novel view ##
+                novel_view : GT 포즈 범위에서 novel view 생서
+                origin_novel_view : train 과정에서 optimize한 포즈 범위에서 novel_view 생성
+
+            """
+            # if opt.data.dataset in ["iphone"]:
+            #     pose_GT = self.train_data.get_all_gt_camera_poses(opt).to(opt.device)
+            #     pose_pred=None
+            # else:
+            pose_pred,pose_GT = self.get_all_training_poses(opt)
             poses = pose_GT
             if opt.model == "barf" and opt.data.dataset == "llff":
                 _, sim3 = self.prealign_cameras(opt, pose_pred, pose_GT)
@@ -188,14 +213,43 @@ class Model(base.Model):
                 invdepth = (1 - ret.depth) / ret.opacity if opt.camera.ndc else 1 / (ret.depth / ret.opacity + eps)
                 rgb_map = ret.rgb.view(-1, opt.H, opt.W, 3).permute(0, 3, 1, 2)  # [B,3,H,W]
                 invdepth_map = invdepth.view(-1, opt.H, opt.W, 1).permute(0, 3, 1, 2)  # [B,1,H,W]
-                # psnr = -10 * self.graph.MSE_loss(rgb_map, var.image).log10().item()
-                # ssim = pytorch_ssim.ssim(rgb_map, var.image).item()
-                # lpips = self.lpips_loss(rgb_map * 2 - 1, var.image * 2 - 1).item()
-                # res.append(edict(psnr=psnr, ssim=ssim, lpips=lpips))
                 # dump novel views
                 torchvision_F.to_pil_image(rgb_map.cpu()[0]).save("{}/rgb_novel_{}ckpt_{}.png".format(ckpt_image_path, ep, i))
                 torchvision_F.to_pil_image(invdepth_map.cpu()[0]).save("{}/depth_novel_{}ckpt_{}.png".format(ckpt_image_path, ep, i))
-                break  # TODO : 일단 train 첫번째 이미지만
+                if i==2 : break
+                #break # TODO : 일단 train 첫번째 이미지만
+
+            """
+                ## origin novel view ##
+                novel_view : GT 포즈 범위에서 novel view 생서
+                origin_novel_view : train 과정에서 optimize한 포즈 범위에서 novel_view 생성
+
+            """
+            pose_pred, pose_GT = self.get_all_training_poses(opt)
+            poses = pose_pred if opt.model == "barf" else pose_GT
+            if opt.model == "barf" and opt.data.dataset == "llff":
+                _, sim3 = self.prealign_cameras(opt, pose_pred, pose_GT)
+                scale = sim3.s1 / sim3.s0
+            else:
+                scale = 1
+            # rotate novel views around the "center" camera of all poses
+            idx_center = (poses - poses.mean(dim=0, keepdim=True))[..., 3].norm(dim=-1).argmin()
+            pose_novel = camera.get_novel_view_poses(opt, poses[idx_center], N=1, scale=scale).to(opt.device)
+            pose_novel_tqdm = tqdm.tqdm(pose_novel, desc="rendering novel views", leave=False)
+            intr = edict(next(iter(self.test_loader))).intr[:1].to(opt.device)  # grab intrinsics
+            for i, pose in enumerate(pose_novel_tqdm):
+                ret = self.graph.render_by_slices(opt, pose[None], intr=intr) if opt.nerf.rand_rays else \
+                    self.graph.render(opt, pose[None], intr=intr)
+                invdepth = (1 - ret.depth) / ret.opacity if opt.camera.ndc else 1 / (ret.depth / ret.opacity + eps)
+                rgb_map = ret.rgb.view(-1, opt.H, opt.W, 3).permute(0, 3, 1, 2)  # [B,3,H,W]
+                invdepth_map = invdepth.view(-1, opt.H, opt.W, 1).permute(0, 3, 1, 2)  # [B,1,H,W]
+
+                torchvision_F.to_pil_image(rgb_map.cpu()[0]).save(
+                    "{}/rgb_novel_origin_{}ckpt_{}.png".format(ckpt_image_path, ep, i))
+                torchvision_F.to_pil_image(invdepth_map.cpu()[0]).save(
+                    "{}/depth_novel_origin_{}ckpt_{}.png".format(ckpt_image_path, ep, i))
+                if i==2 : break
+                #break # TODO : 일단 train 첫번째 이미지만
 
             #for test pose
             res = []
@@ -221,8 +275,11 @@ class Model(base.Model):
                     "{}/depth_test_{}ckpt_{}.png".format(ckpt_image_path, ep, i))
                 if ep == opt.freq.ckpt:  # GT는 같은 이미지니까 한번만 저장
                     torchvision_F.to_pil_image(var.image.cpu()[0]).save(
-                        "{}/rgb_GT_{}ckpt_{}.png".format(ckpt_image_path, ep, i))  # GT는 한번만 해도 될듯
-                break  # TODO : 일단 train 첫번째 이미지만
+                        "{}/rgb_GT_{}ckpt_{}.png".format(ckpt_image_path, ep, i))
+
+                if i == 2: break
+                # break # TODO : 일단 train 첫번째 이미지만
+
             psnr = np.mean([r.psnr for r in res])
             ssim = np.mean([r.ssim for r in res])
             lpips = np.mean([r.lpips for r in res])
@@ -235,56 +292,17 @@ class Model(base.Model):
 
     @torch.no_grad()
     def generate_videos_synthesis(self,opt,eps=1e-10):
-        # self.graph.eval()
-        # if opt.data.dataset in ["iphone","arkit","blender"] :
-        #     # 여긴 그냥 만들어진 이미지로 바로 영상만들고 아래서 노블뷰만 하는
-        #     test_path = "{}/test_view".format(opt.output_path)
-        #     # assume the test view synthesis are already generated
-        #     print("writing videos...")
-        #     rgb_vid_fname = "{}/test_view_rgb.mp4".format(opt.output_path)
-        #     depth_vid_fname = "{}/test_view_depth.mp4".format(opt.output_path)
-        #     os.system("ffmpeg -y -framerate 30 -i {0}/rgb_%d.png -pix_fmt yuv420p {1} >/dev/null 2>&1".format(test_path,rgb_vid_fname))
-        #     os.system("ffmpeg -y -framerate 30 -i {0}/depth_%d.png -pix_fmt yuv420p {1} >/dev/null 2>&1".format(test_path,depth_vid_fname))
-        # else:  # test data X
-        #     pose_pred, pose_GT = self.get_all_training_poses(opt)
-        #     poses = pose_pred if opt.model == "barf" else pose_GT
-        #     if opt.model == "barf" and opt.data.dataset == "llff":
-        #         _, sim3 = self.prealign_cameras(opt, pose_pred, pose_GT)
-        #         scale = sim3.s1 / sim3.s0
-        #     else:
-        #         scale = 1
-        #     # rotate novel views around the "center" camera of all poses
-        #     idx_center = (poses - poses.mean(dim=0, keepdim=True))[..., 3].norm(dim=-1).argmin()
-        #     pose_novel = camera.get_novel_view_poses(opt, poses[idx_center], N=60, scale=scale).to(opt.device)
-        #
-        #     # render the novel views
-        #     novel_path = "{}/novel_view".format(opt.output_path)
-        #     os.makedirs(novel_path, exist_ok=True)
-        #     pose_novel_tqdm = tqdm.tqdm(pose_novel, desc="rendering novel views", leave=False)
-        #     intr = edict(next(iter(self.test_loader))).intr[:1].to(opt.device)  # grab intrinsics
-        #     for i, pose in enumerate(pose_novel_tqdm):
-        #         ret = self.graph.render_by_slices(opt, pose[None], intr=intr) if opt.nerf.rand_rays else \
-        #             self.graph.render(opt, pose[None], intr=intr)
-        #         invdepth = (1 - ret.depth) / ret.opacity if opt.camera.ndc else 1 / (ret.depth / ret.opacity + eps)
-        #         rgb_map = ret.rgb.view(-1, opt.H, opt.W, 3).permute(0, 3, 1, 2)  # [B,3,H,W]
-        #         invdepth_map = invdepth.view(-1, opt.H, opt.W, 1).permute(0, 3, 1, 2)  # [B,1,H,W]
-        #         torchvision_F.to_pil_image(rgb_map.cpu()[0]).save("{}/rgb_{}.png".format(novel_path, i))
-        #         torchvision_F.to_pil_image(invdepth_map.cpu()[0]).save("{}/depth_{}.png".format(novel_path, i))
-
         if opt.data.dataset in ["iphone", "arkit"]:  #arkit,iphone test,novel 둘 다 생성위함
             # pose_pred,pose_GT = self.get_all_training_poses(opt)
             # #novel view에서 iphone도 training GT 원본 가져오게 바꿈,
-            # 저 한줄코드는 nerf.py get_all_training_poses가 아닌  barf.py get_all_training_poses로 접근, 그래서 아래 조건처럼 나눔
-            if opt.data.dataset in ["iphone"]:
-                pose_GT = self.train_data.get_all_gt_camera_poses(opt).to(opt.device)
-                pose_pred=None
-            else:
-                pose_pred,pose_GT = self.get_all_training_poses(opt)
+            # 저 한줄코드는 nerf.py get_all_training_poses가 아닌  barf.py get_all_training_poses로 접근
+            pose_pred, pose_GT = self.get_all_training_poses(opt)
             poses = pose_GT
-            if opt.model=="barf" and opt.data.dataset=="llff":
-                _,sim3 = self.prealign_cameras(opt,pose_pred,pose_GT)
-                scale = sim3.s1/sim3.s0
-            else: scale = 1
+            if opt.model == "barf" and opt.data.dataset == "llff":
+                _, sim3 = self.prealign_cameras(opt, pose_pred, pose_GT)
+                scale = sim3.s1 / sim3.s0
+            else:
+                scale = 1
             # rotate novel views around the "center" camera of all poses
             idx_center = (poses-poses.mean(dim=0,keepdim=True))[...,3].norm(dim=-1).argmin()
             pose_novel = camera.get_novel_view_poses(opt,poses[idx_center],N=60,scale=scale).to(opt.device)
@@ -293,6 +311,7 @@ class Model(base.Model):
             print('$$$ {} pose_novel[0] : {} '.format(opt.data.dataset,pose_novel[0]))
             print('$$$ {} pose_novel[10] : {} '.format(opt.data.dataset,pose_novel[10]))
             print('$$$ {} pose_novel[10] : {} '.format(opt.data.dataset,pose_novel[10]))
+
             # render the novel views
             novel_path = "{}/novel_view".format(opt.output_path)
             os.makedirs(novel_path,exist_ok=True)
@@ -320,7 +339,70 @@ class Model(base.Model):
             os.system("ffmpeg -y -framerate 30 -i {0}/rgb_%d.png -pix_fmt yuv420p {1} >/dev/null 2>&1".format(novel_path,rgb_vid_fname))
             os.system("ffmpeg -y -framerate 30 -i {0}/depth_%d.png -pix_fmt yuv420p {1} >/dev/null 2>&1".format(novel_path,depth_vid_fname))
 
-# ============================ computation graph for forward/backprop ============================
+    @torch.no_grad()
+    def generate_videos_synthesis_origin(self, opt, eps=1e-10):
+        self.graph.eval()
+        if opt.data.dataset == "blender":
+            test_path = "{}/test_view".format(opt.output_path)
+            # assume the test view synthesis are already generated
+            print("writing videos...")
+            rgb_vid_fname = "{}/test_view_rgb.mp4".format(opt.output_path)
+            depth_vid_fname = "{}/test_view_depth.mp4".format(opt.output_path)
+            os.system("ffmpeg -y -framerate 30 -i {0}/rgb_%d.png -pix_fmt yuv420p {1} >/dev/null 2>&1".format(test_path,
+                                                                                                              rgb_vid_fname))
+            os.system(
+                "ffmpeg -y -framerate 30 -i {0}/depth_%d.png -pix_fmt yuv420p {1} >/dev/null 2>&1".format(test_path,
+                                                                                                          depth_vid_fname))
+        else:
+            pose_pred, pose_GT = self.get_all_training_poses(opt)
+            if opt.model == "barf":
+                poses = pose_pred
+                print('#######novel poses target#######')
+                print('$$$ {} pose_pred[0] : {} '.format(opt.data.dataset, pose_pred[0]))
+                print('$$$ {} pose_pred[10] : {} '.format(opt.data.dataset, pose_pred[10]))
+                print('$$$ {} pose_pred[10] : {} '.format(opt.data.dataset, pose_pred[10]))
+
+            else :
+                poses = pose_GT
+            if opt.model == "barf" and opt.data.dataset == "llff":
+                _, sim3 = self.prealign_cameras(opt, pose_pred, pose_GT)
+                scale = sim3.s1 / sim3.s0
+            else:
+                scale = 1
+            # rotate novel views around the "center" camera of all poses
+            idx_center = (poses - poses.mean(dim=0, keepdim=True))[..., 3].norm(dim=-1).argmin()
+            pose_novel = camera.get_novel_view_poses(opt, poses[idx_center], N=60, scale=scale).to(opt.device)
+            # TODO : novel_view check
+            print('############origin novel view################')
+            print('$$$ {} novel_view idx_center : {} '.format(opt.data.dataset, idx_center))
+            print('$$$ {} pose_novel[0] : {} '.format(opt.data.dataset, pose_novel[0]))
+            print('$$$ {} pose_novel[10] : {} '.format(opt.data.dataset, pose_novel[10]))
+            print('$$$ {} pose_novel[10] : {} '.format(opt.data.dataset, pose_novel[10]))
+
+            # render the novel views
+            novel_path = "{}/novel_view_origin".format(opt.output_path)
+            os.makedirs(novel_path, exist_ok=True)
+            pose_novel_tqdm = tqdm.tqdm(pose_novel, desc="rendering origin "
+                                                         "novel views", leave=False)
+            intr = edict(next(iter(self.test_loader))).intr[:1].to(opt.device)  # grab intrinsics
+            for i, pose in enumerate(pose_novel_tqdm):
+                ret = self.graph.render_by_slices(opt, pose[None], intr=intr) if opt.nerf.rand_rays else \
+                    self.graph.render(opt, pose[None], intr=intr)
+                invdepth = (1 - ret.depth) / ret.opacity if opt.camera.ndc else 1 / (ret.depth / ret.opacity + eps)
+                rgb_map = ret.rgb.view(-1, opt.H, opt.W, 3).permute(0, 3, 1, 2)  # [B,3,H,W]
+                invdepth_map = invdepth.view(-1, opt.H, opt.W, 1).permute(0, 3, 1, 2)  # [B,1,H,W]
+                torchvision_F.to_pil_image(rgb_map.cpu()[0]).save("{}/rgb_{}.png".format(novel_path, i))
+                torchvision_F.to_pil_image(invdepth_map.cpu()[0]).save("{}/depth_{}.png".format(novel_path, i))
+            # write videos
+            print("writing videos...")
+            rgb_vid_fname = "{}/novel_view_rgb.mp4".format(opt.output_path)
+            depth_vid_fname = "{}/novel_view_depth.mp4".format(opt.output_path)
+            os.system(
+                "ffmpeg -y -framerate 30 -i {0}/rgb_%d.png -pix_fmt yuv420p {1} >/dev/null 2>&1".format(novel_path,
+                                                                                                        rgb_vid_fname))
+            os.system("ffmpeg -y -framerate 30 -i {0}/depth_%d.png -pix_fmt yuv420p {1} >/dev/null 2>&1".format(novel_path,depth_vid_fname))
+
+            # ============================ computation graph for forward/backprop ==========================
 
 class Graph(base.Graph):
 

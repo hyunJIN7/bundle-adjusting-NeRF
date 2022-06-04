@@ -30,7 +30,13 @@ def main():
         if opt.data.dataset in ["blender","llff","arkit","iphone"]:
             m.evaluate_full(opt)
 
-        m.generate_videos_synthesis(opt)
+        #novel_view synthesis
+        m.generate_videos_synthesis(opt) # novel_view
+        m.generate_videos_synthesis_origin(opt) # origin novel_view synthesis code
+        """
+            novel_view : GT 포즈 범위에서 novel view 생성
+            origin_novel_view : train 과정에서 optimize한 포즈 범위에서 novel_view 생성
+        """
 
 if __name__=="__main__":
     main()
