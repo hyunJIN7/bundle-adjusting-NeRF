@@ -39,6 +39,10 @@ def config_parser():
     parser.add_argument("--data_val_ratio", type=float, default=0.1,
                         help='ratio of sequence split for validation')
 
+    # python process_arkit_data_frame3.py --expname piano_1
+    # python process_arkit_data_frame3.py --expname trashcan_1
+
+
     # optitrack option
     parser.add_argument("--use_optitrack", type=bool, default=False)
     parser.add_argument("--opti_pose_fanme", type=str, default='opti_pose_truck02_996.txt',help='optitrack file name')
@@ -228,6 +232,17 @@ def process_arkit_data(args,ori_size=(1920, 1440), size=(640, 480)):
     keyframe_timestamp_name = np.array(keyframe_timestamp_name)
 
 
+    """train, val, test  ver2"""
+    # n = keyframe_poses.shape[0]  # count of image
+    # num_val_split = (int)(n * args.data_val_ratio)
+    # num_of_data = [100,104,134] # 100 : 4 : 30
+    # train_indexs = np.linspace(0, n, n, endpoint=False, dtype=int)[:num_of_data[0]]
+    # val_indexs = np.linspace(0, n, n, endpoint=False, dtype=int)[num_of_data[0]:num_of_data[1]]
+    # test_indexs = np.linspace(0, n, n, endpoint=False, dtype=int)[num_of_data[1]:num_of_data[2]] #np.random.choice(len(all_raw_cam_pose) , int(n*0.25), replace=False) #키프레임셀렉에서말고 전체 싱크 맞춘거에서 테스트 데이터 뽑아,비복원추출
+    # # test_indexs.sort()
+    # iphone_train_val = np.concatenate((train_indexs,val_indexs))
+    # iphone_train_val.sort()
+
     """train, val, test"""
     n = keyframe_poses.shape[0]  # count of image
     num_val_split = (int)(n * args.data_val_ratio)
@@ -237,6 +252,8 @@ def process_arkit_data(args,ori_size=(1920, 1440), size=(640, 480)):
     test_indexs.sort()
     iphone_train_val = np.concatenate((train_indexs,val_indexs))
     iphone_train_val.sort()
+
+
 
     # transform.txt 파일에 index 있긴하지만 nerf-- format 따르기 위해 따로 index.txt 만들어주기 위해
     def save_image_index(opt='train', indexs=[]):

@@ -216,8 +216,8 @@ class Model(base.Model):
                 # dump novel views
                 torchvision_F.to_pil_image(rgb_map.cpu()[0]).save("{}/rgb_novel_{}ckpt_{}.png".format(ckpt_image_path, ep, i))
                 torchvision_F.to_pil_image(invdepth_map.cpu()[0]).save("{}/depth_novel_{}ckpt_{}.png".format(ckpt_image_path, ep, i))
-                if i==2 : break
-                #break # TODO : 일단 train 첫번째 이미지만
+                if i==1 : break
+                #break
 
             """
                 ## origin novel view ##
@@ -248,8 +248,8 @@ class Model(base.Model):
                     "{}/rgb_novel_origin_{}ckpt_{}.png".format(ckpt_image_path, ep, i))
                 torchvision_F.to_pil_image(invdepth_map.cpu()[0]).save(
                     "{}/depth_novel_origin_{}ckpt_{}.png".format(ckpt_image_path, ep, i))
-                if i==2 : break
-                #break # TODO : 일단 train 첫번째 이미지만
+                if i==1 : break
+                #break
 
             #for test pose
             res = []
@@ -277,8 +277,8 @@ class Model(base.Model):
                     torchvision_F.to_pil_image(var.image.cpu()[0]).save(
                         "{}/rgb_GT_{}ckpt_{}.png".format(ckpt_image_path, ep, i))
 
-                if i == 2: break
-                # break # TODO : 일단 train 첫번째 이미지만
+                if i == 1: break
+                # break
 
             psnr = np.mean([r.psnr for r in res])
             ssim = np.mean([r.ssim for r in res])
