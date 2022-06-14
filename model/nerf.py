@@ -205,7 +205,7 @@ class Model(base.Model):
             # rotate novel views around the "center" camera of all poses
             idx_center = (poses - poses.mean(dim=0, keepdim=True))[..., 3].norm(dim=-1).argmin()
             pose_novel = camera.get_novel_view_poses(opt, poses[idx_center], N=1, scale=scale).to(opt.device)
-            pose_novel_tqdm = tqdm.tqdm(pose_novel, desc="rendering novel views", leave=False)
+            pose_novel_tqdm = tqdm.tqdm(pose_novel, desc="ckpt rendering novel views", leave=False)
             intr = edict(next(iter(self.test_loader))).intr[:1].to(opt.device)  # grab intrinsics
             for i, pose in enumerate(pose_novel_tqdm):
                 ret = self.graph.render_by_slices(opt, pose[None], intr=intr) if opt.nerf.rand_rays else \
@@ -216,8 +216,7 @@ class Model(base.Model):
                 # dump novel views
                 torchvision_F.to_pil_image(rgb_map.cpu()[0]).save("{}/rgb_novel_{}ckpt_{}.png".format(ckpt_image_path, ep, i))
                 torchvision_F.to_pil_image(invdepth_map.cpu()[0]).save("{}/depth_novel_{}ckpt_{}.png".format(ckpt_image_path, ep, i))
-                if i==1 : break
-                #break
+                if i==0 : break
 
             """
                 ## origin novel view ##
@@ -235,7 +234,7 @@ class Model(base.Model):
             # rotate novel views around the "center" camera of all poses
             idx_center = (poses - poses.mean(dim=0, keepdim=True))[..., 3].norm(dim=-1).argmin()
             pose_novel = camera.get_novel_view_poses(opt, poses[idx_center], N=1, scale=scale).to(opt.device)
-            pose_novel_tqdm = tqdm.tqdm(pose_novel, desc="rendering novel views", leave=False)
+            pose_novel_tqdm = tqdm.tqdm(pose_novel, desc="ckpt rendering origin novel views", leave=False)
             intr = edict(next(iter(self.test_loader))).intr[:1].to(opt.device)  # grab intrinsics
             for i, pose in enumerate(pose_novel_tqdm):
                 ret = self.graph.render_by_slices(opt, pose[None], intr=intr) if opt.nerf.rand_rays else \
@@ -248,8 +247,8 @@ class Model(base.Model):
                     "{}/rgb_novel_origin_{}ckpt_{}.png".format(ckpt_image_path, ep, i))
                 torchvision_F.to_pil_image(invdepth_map.cpu()[0]).save(
                     "{}/depth_novel_origin_{}ckpt_{}.png".format(ckpt_image_path, ep, i))
-                if i==1 : break
-                #break
+                if i==0 : break
+
 
             #for test pose
             res = []
@@ -277,8 +276,7 @@ class Model(base.Model):
                     torchvision_F.to_pil_image(var.image.cpu()[0]).save(
                         "{}/rgb_GT_{}ckpt_{}.png".format(ckpt_image_path, ep, i))
 
-                if i == 1: break
-                # break
+                if i == 0: break
 
             psnr = np.mean([r.psnr for r in res])
             ssim = np.mean([r.ssim for r in res])
@@ -305,7 +303,7 @@ class Model(base.Model):
                 scale = 1
             # rotate novel views around the "center" camera of all poses
             idx_center = (poses-poses.mean(dim=0,keepdim=True))[...,3].norm(dim=-1).argmin()
-            pose_novel = camera.get_novel_view_poses(opt,poses[idx_center],N=60,scale=scale).to(opt.device)
+            pose_novel = camera.get_novel_view_poses(opt,poses[idx_center],N=10,scale=scale).to(opt.device)
             #TODO : novel_view check
             print('$$$ {} novel_view idx_center : {} '.format(opt.data.dataset,idx_center))
             print('$$$ {} pose_novel[0] : {} '.format(opt.data.dataset,pose_novel[0]))
@@ -371,7 +369,7 @@ class Model(base.Model):
                 scale = 1
             # rotate novel views around the "center" camera of all poses
             idx_center = (poses - poses.mean(dim=0, keepdim=True))[..., 3].norm(dim=-1).argmin()
-            pose_novel = camera.get_novel_view_poses(opt, poses[idx_center], N=60, scale=scale).to(opt.device)
+            pose_novel = camera.get_novel_view_poses(opt, poses[idx_center], N=10, scale=scale).to(opt.device)
             # TODO : novel_view check
             print('############origin novel view################')
             print('$$$ {} novel_view idx_center : {} '.format(opt.data.dataset, idx_center))
