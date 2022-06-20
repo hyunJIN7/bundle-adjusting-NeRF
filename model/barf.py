@@ -194,14 +194,6 @@ class Model(nerf.Model):
             iterator.set_postfix(loss="{:.3f}".format(loss.all))
         return var
 
-
-    def select_plot_pose(self,pose):
-        """
-        pose refine 그릴때 몇개 일부만 그리기 위해
-        """
-        select_pose = [pose[i] for i in range(pose.shape[0]) if i%15] #TODO : 간격 뭘로 할지
-        return select_pose
-
     @torch.no_grad()
     def generate_videos_pose(self,opt):
         self.graph.eval()
@@ -219,9 +211,6 @@ class Model(nerf.Model):
             if opt.data.dataset in ["iphone","arkit","blender","llff"]:
                 pose_aligned,_ = self.prealign_cameras(opt,pose,pose_ref)
                 pose_aligned,pose_ref = pose_aligned.detach().cpu(),pose_ref.detach().cpu()
-                # TODO: 여기서 원본이랑 보정된 포즈 다 그리지말고 몇개당 하나만 추출
-                # pose_aligned = self.select_plot_pose(pose_aligned)
-                # pose_ref = self.select_plot_pose(pose_ref)
                 dict(
                     blender=util_vis.plot_save_poses_blender,
                     llff=util_vis.plot_save_poses,
@@ -230,8 +219,6 @@ class Model(nerf.Model):
                 )[opt.data.dataset](opt,fig,pose_aligned,pose_ref=pose_ref,path=cam_path,ep=ep)
             else:
                 pose = pose.detach().cpu()  # 여기서 원본이랑 보정된 포즈 다 그리지말고 몇개당 하나만 추출해서 그리자
-                #TODO : 그릴 pose 추출
-                # pose= self.select_plot_pose(pose)
                 util_vis.plot_save_poses(opt,fig,pose,pose_ref=None,path=cam_path,ep=ep)
             ep_list.append(ep)
         plt.close()
@@ -249,6 +236,111 @@ class Model(nerf.Model):
             pose_image_name = "{}/{}.png".format(cam_path, ep)
             pose_img.append(PIL.Image.fromarray(imageio.imread(pose_image_name)))
         imageio.mimwrite(os.path.join(opt.output_path, 'poses.gif'), pose_img, fps=60)
+
+    """ 논문에 넣을 select한 포즈만 그리기 위한 파트 """
+    @torch.no_grad()
+    def generate_optim_pose(self,opt):
+        self.graph.eval()
+        fig = plt.figure(figsize=(10,10) if opt.data.dataset in ["blender"] else (16,8))
+        cam_path = "{}/poses_iter200000".format(opt.output_path)
+        os.makedirs(cam_path,exist_ok=True)
+        ep_list = []
+        ep = 200000
+        if ep != 0:
+            try:
+                util.restore_checkpoint(opt, self, resume=ep)
+            except:
+                return
+
+            # get the camera poses
+        pose,pose_ref = self.get_all_training_poses(opt) #pose_ref == GT
+        # TODO: 평균 위치 빼서 중앙으로 옮기기
+        N = pose.shape[0]
+        plot_list_index = [i for i in range(N)]
+        #TODO : 튕긴 값들 추가해주기
+        plot_list_index = plot_list_index.sort()
+        if opt.data.dataset in ["iphone","arkit","blender","llff"]:
+            pose_aligned,_ = self.prealign_cameras(opt,pose,pose_ref)
+            pose_aligned,pose_ref = pose_aligned.detach().cpu(),pose_ref.detach().cpu()
+            dict(
+                blender=util_vis.plot_save_poses_blender,
+                llff=util_vis.plot_save_poses,
+                arkit=util_vis.plot_save_poses,
+                iphone=util_vis.plot_save_poses,
+            )[opt.data.dataset](opt,fig,pose_aligned,pose_ref=pose_ref,path=cam_path,ep=ep)
+        else:
+            pose = pose.detach().cpu()
+            util_vis.plot_save_poses(opt,fig,pose,pose_ref=None,path=cam_path,ep=ep)
+        ep_list.append(ep)
+        plt.close()
+        # write videos
+        print("writing videos...")
+        list_fname = "{}/temp.list".format(cam_path)
+        with open(list_fname,"w") as file:
+            for ep in ep_list: file.write("file {}.png\n".format(ep))
+        cam_vid_fname = "{}/poses.mp4".format(opt.output_path)
+        os.system("ffmpeg -y -r 30 -f concat -i {0} -pix_fmt yuv420p {1} >/dev/null 2>&1".format(list_fname,cam_vid_fname))
+        os.remove(list_fname)
+
+        pose_img = []
+        for ep in ep_list:
+            pose_image_name = "{}/{}.png".format(cam_path, ep)
+            pose_img.append(PIL.Image.fromarray(imageio.imread(pose_image_name)))
+        imageio.mimwrite(os.path.join(opt.output_path, 'poses.gif'), pose_img, fps=60)
+
+
+    """ train data pose 하나씩 그려서 튕긴 데이터 찾기 위한 코드
+        논문에 넣을 튕긴 데이터 찾는 코드
+    """
+    @torch.no_grad()
+    def generate_optim_pose_onebyone(self, opt):
+        self.graph.eval()
+        fig = plt.figure(figsize=(10, 10) if opt.data.dataset in ["blender"] else (16, 8))
+        cam_path = "{}/poses_onebyone".format(opt.output_path)
+        os.makedirs(cam_path, exist_ok=True)
+        ep_list = []
+        ep = 200000
+        if ep != 0:
+            try:
+                util.restore_checkpoint(opt, self, resume=ep)
+            except:
+                return
+
+            # get the camera poses
+        pose, pose_ref = self.get_all_training_poses(opt)  # pose_ref == GT
+        N = pose.shape[0]
+        pose_aligned, _ = self.prealign_cameras(opt, pose, pose_ref)
+        pose_aligned, pose_ref = pose_aligned.detach().cpu(), pose_ref.detach().cpu()
+        for i in range(N):
+            if opt.data.dataset in ["iphone", "arkit", "blender", "llff"]:
+                # pose_aligned, _ = self.prealign_cameras(opt, pose, pose_ref)
+                # pose_aligned, pose_ref = pose_aligned.detach().cpu(), pose_ref.detach().cpu()
+
+                dict(
+                    blender=util_vis.plot_save_poses_blender,
+                    llff=util_vis.plot_save_poses,
+                    arkit=util_vis.plot_save_poses,
+                    iphone=util_vis.plot_save_poses,
+                )[opt.data.dataset](opt, fig, pose_aligned[i], pose_ref=pose_ref[i], path=cam_path, ep=ep)
+            else:
+                pose = pose.detach().cpu()  # 여기서 원본이랑 보정된 포즈 다 그리지말고 몇개당 하나만 추출해서 그리자
+                util_vis.plot_save_poses(opt, fig,  pose[i], pose_ref=None, path=cam_path, ep=ep)
+            ep_list.append(i)
+        plt.close()
+        # write videos
+        print("writing videos...")
+        list_fname = "{}/temp.list".format(cam_path)
+        with open(list_fname, "w") as file:
+            for ep in ep_list: file.write("file {}.png\n".format(ep))
+        cam_vid_fname = "{}/poses.mp4".format(opt.output_path)
+        os.system(
+            "ffmpeg -y -r 30 -f concat -i {0} -pix_fmt yuv420p {1} >/dev/null 2>&1".format(list_fname, cam_vid_fname))
+        os.remove(list_fname)
+
+        pose_img = []
+        for ep in ep_list:
+            pose_image_name = "{}/{}.png".format(cam_path, ep)
+            pose_img.append(PIL.Image.fromarray(imageio.imread(pose_image_name)))
 
 
     @torch.no_grad()

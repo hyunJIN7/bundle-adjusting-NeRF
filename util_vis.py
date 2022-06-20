@@ -191,6 +191,9 @@ def plot_save_poses(opt,fig,pose,pose_ref=None,path=None,ep=None):
     ax2.set_title("top-down view",pad=0)
     plt.subplots_adjust(left=0,right=1,bottom=0,top=0.95,wspace=0,hspace=0)
     plt.margins(tight=True,x=0,y=0)
+
+    #TODO : camers size
+
     # plot the cameras
     N = len(cam)
     color = plt.get_cmap("gist_rainbow")
