@@ -46,6 +46,27 @@ class Dataset(base.Dataset):
             self.list = self.list[:-num_val_split] if split == "train" else self.list[-num_val_split:]  # 전체에서 0.9 : 0.1 = train : test 비율
             self.cam_pose = self.cam_pose[:-num_val_split] if split == "train" else self.cam_pose[-num_val_split:]
 
+        self.gt_pose = self.cam_pose
+
+        self.opti_pose = self.cam_pose
+        # for GT data(optitrack)
+        # gt_pose_fname = "{}/opti_transforms_{}.txt".format(self.path,split)
+        # gt_pose_file = os.path.join('./', gt_pose_fname)
+        # if os.path.isfile(gt_pose_file): # gt file exist
+        #     with open(gt_pose_file, "r") as f:  # frame.txt 읽어서
+        #         cam_frame_lines = f.readlines()
+        #     cam_gt_pose = []  # time r1x y z tx r2x y z ty r3x y z tz
+        #     for line in cam_frame_lines:
+        #         line_data_list = line.split(' ')
+        #         if len(line_data_list) == 0:
+        #             continue
+        #         pose_raw = np.reshape(line_data_list[1:], (3, 4))
+        #         cam_gt_pose.append(pose_raw)
+        #     cam_gt_pose = np.array(cam_pose, dtype=float)
+        #     self.opti_pose = cam_gt_pose
+        # else: self.opti_pose = self.cam_pose
+
+
         if subset:
             self.list = self.list[:subset] # val 4개만
             self.cam_pose = self.cam_pose[:subset]
@@ -67,11 +88,20 @@ class Dataset(base.Dataset):
             pose = camera.pose(t=torch.zeros(len(self),3))  # TODO :Camera 초기 포즈
         return pose
 
-    def get_all_gt_camera_poses(self, opt):
+    #get_all_gt_camera_poses
+    def get_all_gt_camera_poses(self,opt): # optitrack pose load
         #여기 iphone pose 평가할때 gt 데이터 로드 위해(train,val,test)
         pose_raw_all = [torch.tensor(f, dtype=torch.float32) for f in self.cam_pose]
         pose = torch.stack([self.parse_raw_camera(opt, p) for p in pose_raw_all], dim=0)
         return pose
+
+    #get_all_gt_camera_poses
+    def get_all_optitrack_camera_poses(self,opt): # optitrack pose load
+        #여기 iphone pose 평가할때 gt 데이터 로드 위해(train,val,test)
+        pose_raw_all = [torch.tensor(f, dtype=torch.float32) for f in self.cam_pose]
+        pose = torch.stack([self.parse_raw_camera(opt, p) for p in pose_raw_all], dim=0)
+        return pose
+
 
     def __getitem__(self,idx):
         opt = self.opt

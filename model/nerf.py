@@ -130,6 +130,27 @@ class Model(base.Model):
         return pose,pose_GT
 
     @torch.no_grad()
+    def get_all_optitrack_training_poses(self,opt):
+        # get ground-truth (canonical) camera poses
+        # add synthetic pose perturbation to all training data
+        if opt.data.dataset in ["blender"] :
+            pose_GT = self.train_data.get_all_camera_poses(opt).to(opt.device)
+            pose = pose_GT # self.train_data.get_all_camera_poses(opt).to(opt.device)  #(3,4)
+            if opt.camera.noise:
+                pose = camera.pose.compose([self.graph.pose_noise,pose])
+        elif opt.data.dataset in ["arkit"] :
+            pose_GT = self.train_data.get_all_optitrack_camera_poses(opt).to(opt.device)  # (3,4) optitrack
+            pose = self.train_data.get_all_camera_poses(opt).to(opt.device)  #initial pose
+        else:
+            pose_GT = self.train_data.get_all_optitrack_camera_poses(opt).to(opt.device)  # (3,4) optitrack
+            pose = self.graph.pose_eye
+        # add learned pose correction to all training data
+        pose_refine = camera.lie.se3_to_SE3(self.graph.se3_refine.weight) #embeding
+        pose = camera.pose.compose([pose_refine,pose]) #refine_pose와 pose 사이 pose_new(x) = poseN o ... o pose2 o pose1(x) 이렇게
+        return pose,pose_GT
+
+
+    @torch.no_grad()
     def evaluate_full(self,opt,eps=1e-10):
         self.graph.eval()
         loader = tqdm.tqdm(self.test_loader,desc="evaluating",leave=False)
@@ -146,6 +167,13 @@ class Model(base.Model):
             # evaluate view synthesis
             invdepth = (1-var.depth)/var.opacity if opt.camera.ndc else 1/(var.depth/var.opacity+eps)
             rgb_map = var.rgb.view(-1,opt.H,opt.W,3).permute(0,3,1,2) # [B,3,H,W]
+
+            # print('rgb map ',rgb_map)
+            # print('var.image ',var.image)
+            # print('rgb map min ',np.array(rgb_map.cpu()).min())
+            # print('rgb map max ',np.array(rgb_map.cpu()).max())
+
+
             invdepth_map = invdepth.view(-1,opt.H,opt.W,1).permute(0,3,1,2) # [B,1,H,W]
             psnr = -10*self.graph.MSE_loss(rgb_map,var.image).log10().item()
             ssim = pytorch_ssim.ssim(rgb_map,var.image).item()
@@ -155,6 +183,7 @@ class Model(base.Model):
             torchvision_F.to_pil_image(rgb_map.cpu()[0]).save("{}/rgb_{}.png".format(test_path,i))
             torchvision_F.to_pil_image(var.image.cpu()[0]).save("{}/rgb_GT_{}.png".format(test_path,i))
             torchvision_F.to_pil_image(invdepth_map.cpu()[0]).save("{}/depth_{}.png".format(test_path,i))
+
         # show results in terminal
         print("--------------------------")
         print("PSNR:  {:8.2f}".format(np.mean([r.psnr for r in res])))
@@ -307,8 +336,7 @@ class Model(base.Model):
             #TODO : novel_view check
             print('$$$ {} novel_view idx_center : {} '.format(opt.data.dataset,idx_center))
             print('$$$ {} pose_novel[0] : {} '.format(opt.data.dataset,pose_novel[0]))
-            print('$$$ {} pose_novel[10] : {} '.format(opt.data.dataset,pose_novel[10]))
-            print('$$$ {} pose_novel[10] : {} '.format(opt.data.dataset,pose_novel[10]))
+            print('$$$ {} pose_novel[5] : {} '.format(opt.data.dataset, pose_novel[5]))
 
             # render the novel views
             novel_path = "{}/novel_view".format(opt.output_path)
@@ -374,8 +402,8 @@ class Model(base.Model):
             print('############origin novel view################')
             print('$$$ {} novel_view idx_center : {} '.format(opt.data.dataset, idx_center))
             print('$$$ {} pose_novel[0] : {} '.format(opt.data.dataset, pose_novel[0]))
-            print('$$$ {} pose_novel[10] : {} '.format(opt.data.dataset, pose_novel[10]))
-            print('$$$ {} pose_novel[10] : {} '.format(opt.data.dataset, pose_novel[10]))
+            print('$$$ {} pose_novel[10] : {} '.format(opt.data.dataset, pose_novel[5]))
+
 
             # render the novel views
             novel_path = "{}/novel_view_origin".format(opt.output_path)

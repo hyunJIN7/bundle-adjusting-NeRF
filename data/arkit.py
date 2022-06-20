@@ -38,6 +38,9 @@ class Dataset(base.Dataset):
         self.list = cam_pose
         #self.focal = 0.5*self.raw_W/np.tan(0.5*self.meta["camera_angle_x"])
 
+        self.gt_pose = cam_pose
+
+        self.opti_pose = cam_pose
         # for GT data(optitrack)
         # gt_pose_fname = "{}/opti_transforms_{}.txt".format(self.path,split)
         # gt_pose_file = os.path.join('./', gt_pose_fname)
@@ -52,9 +55,9 @@ class Dataset(base.Dataset):
         #         pose_raw = np.reshape(line_data_list[1:], (3, 4))
         #         cam_gt_pose.append(pose_raw)
         #     cam_gt_pose = np.array(cam_pose, dtype=float)
-        #     self.gt_pose = cam_gt_pose
-        # else: self.gt_pose = cam_pose
-        self.gt_pose = cam_pose
+        #     self.opti_pose = cam_gt_pose
+        # else: self.opti_pose = cam_pose
+
 
         if subset: self.list = self.list[:subset] #train,val
         # preload dataset
@@ -71,12 +74,16 @@ class Dataset(base.Dataset):
         pose_raw_all = [torch.tensor(f ,dtype=torch.float32) for f in self.list] # """list : campose 의미"""
         pose_canon_all = torch.stack([self.parse_raw_camera(opt, p) for p in pose_raw_all], dim=0)
         return pose_canon_all
-
+    #get_all_gt_camera_poses
     def get_all_gt_camera_poses(self,opt): # optitrack pose load
         pose_raw_all = [torch.tensor(f ,dtype=torch.float32) for f in self.gt_pose] # """list : campose 의미"""
         pose_canon_all = torch.stack([self.parse_raw_camera(opt, p) for p in pose_raw_all], dim=0)
         return pose_canon_all
 
+    def get_all_optitrack_camera_poses(self,opt): # optitrack pose load
+        pose_raw_all = [torch.tensor(f ,dtype=torch.float32) for f in self.gt_pose] # """list : campose 의미"""
+        pose_canon_all = torch.stack([self.parse_raw_camera(opt, p) for p in pose_raw_all], dim=0)
+        return pose_canon_all
 
     def __getitem__(self,idx):
         opt = self.opt

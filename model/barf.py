@@ -105,6 +105,29 @@ class Model(nerf.Model):
         return pose,pose_GT
 
     @torch.no_grad()
+    def get_all_optitrack_training_poses(self,opt):
+        # get ground-truth (canonical) camera poses
+        # add synthetic pose perturbation to all training data
+        if opt.data.dataset in ["blender"] :
+            pose_GT = self.train_data.get_all_camera_poses(opt).to(opt.device)
+            pose = pose_GT # self.train_data.get_all_camera_poses(opt).to(opt.device)  #(3,4)
+            if opt.camera.noise:
+                pose = camera.pose.compose([self.graph.pose_noise,pose])
+        elif opt.data.dataset in ["arkit"] :
+            pose_GT = self.train_data.get_all_optitrack_camera_poses(opt).to(opt.device)  # (3,4) optitrack
+            pose = self.train_data.get_all_camera_poses(opt).to(opt.device)  #initial pose
+        else:
+            pose_GT = self.train_data.get_all_optitrack_camera_poses(opt).to(opt.device)  # (3,4) optitrack
+            pose = self.graph.pose_eye
+        # add learned pose correction to all training data
+        pose_refine = camera.lie.se3_to_SE3(self.graph.se3_refine.weight) #embeding
+        pose = camera.pose.compose([pose_refine,pose]) #refine_pose와 pose 사이 pose_new(x) = poseN o ... o pose2 o pose1(x) 이렇게
+        return pose,pose_GT
+
+
+
+
+    @torch.no_grad()
     def prealign_cameras(self,opt,pose,pose_GT):
         # compute 3D similarity transform via Procrustes analysis
         center = torch.zeros(1,1,3,device=opt.device)
@@ -136,7 +159,8 @@ class Model(nerf.Model):
     def evaluate_full(self,opt):
         self.graph.eval()
         # evaluate rotation/translation
-        pose, pose_GT = self.get_all_training_poses(opt) # train 과정에서 optimize한 포즈 범위, GT pose
+        #TODO : GT optitrack pose data load
+        pose, pose_GT = self.get_all_optitrack_training_poses(opt) # train 과정에서 optimize한 포즈 범위, GT pose
 
         pose_aligned,self.graph.sim3 = self.prealign_cameras(opt,pose,pose_GT)
         error = self.evaluate_camera_alignment(opt,pose_aligned,pose_GT)

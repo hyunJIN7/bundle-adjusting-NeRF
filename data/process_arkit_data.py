@@ -18,7 +18,7 @@ from skimage import img_as_ubyte
 pose 저장은  [right,up,back]
 """
 # cd data 한 다음에 이 코드 실행해야하나봐 경로 이상해
-# CUDA_VISIBLE_DEVICES=1 python process_arkit_data.py --expname sphere_fire_extin
+# CUDA_VISIBLE_DEVICES=1 python process_arkit_data.py --expname computer_1
 # 다 실행한 이후엔 cd ../ 해주고
 def config_parser():
     import configargparse
@@ -29,9 +29,9 @@ def config_parser():
                         help='input data directory')
 
     #keyframe options
-    parser.add_argument("--min_angle_keyframe", type=float, default= 8,
+    parser.add_argument("--min_angle_keyframe", type=float, default= 15,
                         help='minimum angle between key frames')
-    parser.add_argument("--min_distance_keyframe", type=float, default=0.1,
+    parser.add_argument("--min_distance_keyframe", type=float, default=0.21,
                         help='minimum distance between key frames')
 
     #data
