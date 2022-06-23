@@ -439,7 +439,7 @@ class Graph(base.Graph):
             self.nerf_fine = NeRF(opt)
 
     def forward(self,opt,var,mode=None):
-        batch_size = len(var.idx) #TODO:forward
+        batch_size = len(var.idx) #forward
         pose = self.get_pose(opt,var,mode=mode)
         # render images
         if opt.nerf.rand_rays and mode in ["train","test-optim"]:

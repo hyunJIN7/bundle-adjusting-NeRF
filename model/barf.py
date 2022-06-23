@@ -131,6 +131,8 @@ class Model(nerf.Model):
     def prealign_cameras(self,opt,pose,pose_GT):
         # compute 3D similarity transform via Procrustes analysis
         center = torch.zeros(1,1,3,device=opt.device)
+        # print("!!!!!!!  prealign  center ", center.shape)
+        # print("!!!!!!!  prealign  pose_GT ", pose_GT.shape)
         center_pred = camera.cam2world(center,pose)[:,0] # [N,3]
         center_GT = camera.cam2world(center,pose_GT)[:,0] # [N,3]
         try:
@@ -161,7 +163,6 @@ class Model(nerf.Model):
         # evaluate rotation/translation
         #TODO : GT optitrack pose data load
         pose, pose_GT = self.get_all_optitrack_training_poses(opt) # train 과정에서 optimize한 포즈 범위, GT pose
-
         pose_aligned,self.graph.sim3 = self.prealign_cameras(opt,pose,pose_GT)
         error = self.evaluate_camera_alignment(opt,pose_aligned,pose_GT)
         print("--------------------------")
@@ -257,7 +258,7 @@ class Model(nerf.Model):
         # TODO: 평균 위치 빼서 중앙으로 옮기기
         N = pose.shape[0]
         plot_list_index = [i for i in range(N)]
-        #TODO : 튕긴 값들 추가해주기
+        # TODO : 튕긴 값들 추가해주기
         plot_list_index = plot_list_index.sort()
         if opt.data.dataset in ["iphone","arkit","blender","llff"]:
             pose_aligned,_ = self.prealign_cameras(opt,pose,pose_ref)
@@ -282,16 +283,10 @@ class Model(nerf.Model):
         os.system("ffmpeg -y -r 30 -f concat -i {0} -pix_fmt yuv420p {1} >/dev/null 2>&1".format(list_fname,cam_vid_fname))
         os.remove(list_fname)
 
-        pose_img = []
-        for ep in ep_list:
-            pose_image_name = "{}/{}.png".format(cam_path, ep)
-            pose_img.append(PIL.Image.fromarray(imageio.imread(pose_image_name)))
-        imageio.mimwrite(os.path.join(opt.output_path, 'poses.gif'), pose_img, fps=60)
-
-
     """ train data pose 하나씩 그려서 튕긴 데이터 찾기 위한 코드
         논문에 넣을 튕긴 데이터 찾는 코드
     """
+
     @torch.no_grad()
     def generate_optim_pose_onebyone(self, opt):
         self.graph.eval()
@@ -321,10 +316,10 @@ class Model(nerf.Model):
                     llff=util_vis.plot_save_poses,
                     arkit=util_vis.plot_save_poses,
                     iphone=util_vis.plot_save_poses,
-                )[opt.data.dataset](opt, fig, pose_aligned[i], pose_ref=pose_ref[i], path=cam_path, ep=ep)
+                )[opt.data.dataset](opt, fig, pose_aligned[i], pose_ref=pose_ref[i], path=cam_path, ep=i)
             else:
                 pose = pose.detach().cpu()  # 여기서 원본이랑 보정된 포즈 다 그리지말고 몇개당 하나만 추출해서 그리자
-                util_vis.plot_save_poses(opt, fig,  pose[i], pose_ref=None, path=cam_path, ep=ep)
+                util_vis.plot_save_poses(opt, fig, pose[i], pose_ref=None, path=cam_path, ep=i)
             ep_list.append(i)
         plt.close()
         # write videos
@@ -337,10 +332,44 @@ class Model(nerf.Model):
             "ffmpeg -y -r 30 -f concat -i {0} -pix_fmt yuv420p {1} >/dev/null 2>&1".format(list_fname, cam_vid_fname))
         os.remove(list_fname)
 
-        pose_img = []
-        for ep in ep_list:
-            pose_image_name = "{}/{}.png".format(cam_path, ep)
-            pose_img.append(PIL.Image.fromarray(imageio.imread(pose_image_name)))
+    """ train data pose 하나씩 그려서 튕긴 데이터 찾기 위한 코드
+        논문에 넣을 튕긴 데이터 찾는 코드
+    """
+    @torch.no_grad()
+    def generate_optim_pose_oneNall(self, opt):
+        self.graph.eval()
+        fig = plt.figure(figsize=(10, 10) if opt.data.dataset in ["blender"] else (16, 8))
+        cam_path = "{}/poses_oneNall".format(opt.output_path)
+        os.makedirs(cam_path, exist_ok=True)
+        ep_list = []
+        ep = 200000
+        if ep != 0:
+            try:
+                util.restore_checkpoint(opt, self, resume=ep)
+            except:
+                return
+
+            # get the camera poses
+        pose, pose_ref = self.get_all_training_poses(opt)  # pose_ref == GT
+        N = pose.shape[0]
+        pose_aligned, _ = self.prealign_cameras(opt, pose, pose_ref)
+        pose_aligned, pose_ref = pose_aligned.detach().cpu(), pose_ref.detach().cpu()
+        for i in range(N):
+            if opt.data.dataset in ["iphone", "arkit", "blender", "llff"]:
+                # pose_aligned, _ = self.prealign_cameras(opt, pose, pose_ref)
+                # pose_aligned, pose_ref = pose_aligned.detach().cpu(), pose_ref.detach().cpu()
+                dict(
+                    blender=util_vis.plot_save_poses_blender,
+                    llff=util_vis.plot_save_poses,
+                    arkit=util_vis.plot_save_poses_for_oneNall,
+                    iphone=util_vis.plot_save_poses_for_oneNall,
+                )[opt.data.dataset](opt, fig, pose_aligned[i], pose_ref=pose_ref, path=cam_path, ep=i)
+            else:
+                pose = pose.detach().cpu()  # 여기서 원본이랑 보정된 포즈 다 그리지말고 몇개당 하나만 추출해서 그리자
+                util_vis.plot_save_poses(opt, fig,  pose[i], pose_ref=None, path=cam_path, ep=i)
+            ep_list.append(i)
+        plt.close()
+
 
 
     @torch.no_grad()

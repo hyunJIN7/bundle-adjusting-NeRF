@@ -40,13 +40,13 @@ def config_parser():
                         help='ratio of sequence split for validation')
 
     # python process_arkit_data_frame3.py --expname piano_1
-    # python process_arkit_data_frame3.py --expname trashcan_1
+    # python process_arkit_data_frame3.py --expname opti_truck03
 
 
     # optitrack option
     parser.add_argument("--use_optitrack", type=bool, default=False)
     parser.add_argument("--opti_pose_fanme", type=str, default='opti_pose_truck02_996.txt',help='optitrack file name')
-    # python process_arkit_data_frame3.py --expname opti_truck_02 --use_optitrack=True --opti_pose_fanme=opti_pose.txt
+    # python process_arkit_data_frame3.py --expname opti_truck04 --use_optitrack=True --opti_pose_fanme=icp_opti_translation_0621_truck03.txt
     # python process_arkit_data_frame3.py --expname opti_truck_03 --use_optitrack=True --opti_pose_fanme=opti_pose_truck_03_96.txt
 
     # python process_arkit_data_frame3.py --expname opti_icptest3d --use_optitrack=True --opti_pose_fanme=opti_pose_icptest3d_96.txt
