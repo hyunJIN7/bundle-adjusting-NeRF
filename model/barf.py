@@ -257,9 +257,9 @@ class Model(nerf.Model):
         pose,pose_ref = self.get_all_training_poses(opt) #pose_ref == GT
         # TODO: 평균 위치 빼서 중앙으로 옮기기
         N = pose.shape[0]
-        plot_list_index = [i for i in range(N)]
-        # TODO : 튕긴 값들 추가해주기
-        plot_list_index = plot_list_index.sort()
+        plot_list_index = [i for i in range(0, N, 30)]
+        bounced_value = [2, 5, 8, 16, 25, 27, 34, 35, 46, 101, 119, 120, 110]
+        plot_list_index = np.sort(np.concatenate((plot_list_index,bounced_value)))
         if opt.data.dataset in ["iphone","arkit","blender","llff"]:
             pose_aligned,_ = self.prealign_cameras(opt,pose,pose_ref)
             pose_aligned,pose_ref = pose_aligned.detach().cpu(),pose_ref.detach().cpu()
@@ -268,20 +268,13 @@ class Model(nerf.Model):
                 llff=util_vis.plot_save_poses,
                 arkit=util_vis.plot_save_poses,
                 iphone=util_vis.plot_save_poses,
-            )[opt.data.dataset](opt,fig,pose_aligned,pose_ref=pose_ref,path=cam_path,ep=ep)
+            )[opt.data.dataset](opt,fig,pose_aligned[plot_list_index],pose_ref=pose_ref[plot_list_index],path=cam_path,ep=ep)
         else:
             pose = pose.detach().cpu()
             util_vis.plot_save_poses(opt,fig,pose,pose_ref=None,path=cam_path,ep=ep)
         ep_list.append(ep)
         plt.close()
-        # write videos
-        print("writing videos...")
-        list_fname = "{}/temp.list".format(cam_path)
-        with open(list_fname,"w") as file:
-            for ep in ep_list: file.write("file {}.png\n".format(ep))
-        cam_vid_fname = "{}/poses.mp4".format(opt.output_path)
-        os.system("ffmpeg -y -r 30 -f concat -i {0} -pix_fmt yuv420p {1} >/dev/null 2>&1".format(list_fname,cam_vid_fname))
-        os.remove(list_fname)
+
 
     """ train data pose 하나씩 그려서 튕긴 데이터 찾기 위한 코드
         논문에 넣을 튕긴 데이터 찾는 코드
@@ -322,15 +315,7 @@ class Model(nerf.Model):
                 util_vis.plot_save_poses(opt, fig, pose[i], pose_ref=None, path=cam_path, ep=i)
             ep_list.append(i)
         plt.close()
-        # write videos
-        print("writing videos...")
-        list_fname = "{}/temp.list".format(cam_path)
-        with open(list_fname, "w") as file:
-            for ep in ep_list: file.write("file {}.png\n".format(ep))
-        cam_vid_fname = "{}/poses.mp4".format(opt.output_path)
-        os.system(
-            "ffmpeg -y -r 30 -f concat -i {0} -pix_fmt yuv420p {1} >/dev/null 2>&1".format(list_fname, cam_vid_fname))
-        os.remove(list_fname)
+
 
     """ train data pose 하나씩 그려서 튕긴 데이터 찾기 위한 코드
         논문에 넣을 튕긴 데이터 찾는 코드
