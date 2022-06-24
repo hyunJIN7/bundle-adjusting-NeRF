@@ -215,9 +215,7 @@ def img2cam(X,cam_intr):
 def cam2world(X,pose): #x 가 center ?..
     X_hom = to_hom(X)
     pose_inv = Pose().invert(pose)
-    # print("###### X : ", X.shape)
-    # print("###### X_hom : ", X_hom.shape)
-    # print("###### pose : ", pose.shape)
+
     return X_hom@pose_inv.transpose(-1,-2)
 
 def angle_to_rotation_matrix(a,axis):

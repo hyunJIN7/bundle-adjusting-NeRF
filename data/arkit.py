@@ -45,6 +45,7 @@ class Dataset(base.Dataset):
         gt_pose_fname = "{}/opti_transforms_{}.txt".format(self.path,split)
         gt_pose_file = os.path.join('./', gt_pose_fname)
         if os.path.isfile(gt_pose_file): # gt file exist
+            print("##########opti load ########")
             with open(gt_pose_file, "r") as f:  # frame.txt 읽어서
                 cam_frame_lines = f.readlines()
             cam_gt_pose = []  # time r1x y z tx r2x y z ty r3x y z tz

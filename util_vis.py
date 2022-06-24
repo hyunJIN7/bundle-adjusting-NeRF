@@ -181,42 +181,102 @@ def merge_centers(centers):
         center_merged[2] += [float(c1[2]),float(c2[2]),None]
     return center_merged
 
-def plot_save_poses(opt,fig,pose,pose_ref=None,path=None,ep=None):
+def plot_save_optim_poses(opt, fig, pose, pose_ref=None, path=None, ep=None):
     # get the camera meshes
-    _,_,cam = get_camera_mesh(pose,depth=opt.visdom.cam_depth)
+    _, _, cam = get_camera_mesh(pose, depth=opt.visdom.cam_depth)
     cam = cam.numpy()
     if pose_ref is not None:
-        _,_,cam_ref = get_camera_mesh(pose_ref,depth=opt.visdom.cam_depth)
-        cam_ref = cam_ref.numpy()  #(N,10,3)
+        _, _, cam_ref = get_camera_mesh(pose_ref, depth=opt.visdom.cam_depth)
+        cam_ref = cam_ref.numpy()  # (N,10,3)
     # set up plot window(s)
     plt.title("epoch {}".format(ep))
-    ax1 = fig.add_subplot(121,projection="3d")
-    ax2 = fig.add_subplot(122,projection="3d")
-    setup_3D_plot(ax1,elev=-90,azim=-90,lim=edict(x=(-1,1),y=(-1,1),z=(-1,1)))  #x=(-1,1),y=(-1,1),z=(-1,1)
-    setup_3D_plot(ax2,elev=0,azim=-90,lim=edict(x=(-1,1),y=(-1,1),z=(-1,1)))
-    ax1.set_title("forward-facing view",pad=0)
-    ax2.set_title("top-down view",pad=0)
-    plt.subplots_adjust(left=0,right=1,bottom=0,top=0.95,wspace=0,hspace=0)
-    plt.margins(tight=True,x=0,y=0)
+    ax1 = fig.add_subplot(131, projection="3d")
+    ax2 = fig.add_subplot(132, projection="3d")
+    ax3 = fig.add_subplot(133, projection="3d")
+    setup_3D_plot(ax1, elev=-90, azim=-90, lim=edict(x=(-1, 1), y=(-1, 1), z=(-1, 1)))  # x=(-1,1),y=(-1,1),z=(-1,1)
+    setup_3D_plot(ax2, elev=0, azim=-90, lim=edict(x=(-1, 1), y=(-1, 1), z=(-1, 1)))
+    setup_3D_plot(ax3, elev=-90, azim=-90, lim=edict(x=(-1, 1), y=(-1, 1), z=(-1, 1)))  # x=(-1,1),y=(-1,1),z=(-1,1)
+
+    ax1.set_title("forward-facing view", pad=0)
+    ax2.set_title("top-down view", pad=0)
+    ax3.set_title("forward-facing view", pad=0)
+    plt.subplots_adjust(left=0, right=1, bottom=0, top=0.95, wspace=0, hspace=0)
+    plt.margins(tight=True, x=0, y=0)
     # plot the cameras
     N = len(cam)
     color = plt.get_cmap("gist_rainbow")
 
     for i in range(N):
         if pose_ref is not None:
-            ax1.plot(cam_ref[i,:,0],cam_ref[i,:,1],cam_ref[i,:,2],color=(0.3,0.3,0.3),linewidth=1)
-            ax2.plot(cam_ref[i,:,0],cam_ref[i,:,1],cam_ref[i,:,2],color=(0.3,0.3,0.3),linewidth=1)
-            ax1.scatter(cam_ref[i,5,0],cam_ref[i,5,1],cam_ref[i,5,2],color=(0.3,0.3,0.3),s=40)
-            ax2.scatter(cam_ref[i,5,0],cam_ref[i,5,1],cam_ref[i,5,2],color=(0.3,0.3,0.3),s=40)
+            ax1.plot(cam_ref[i, :, 0], cam_ref[i, :, 1], cam_ref[i, :, 2], color=(0.3, 0.3, 0.3), linewidth=1)
+            ax2.plot(cam_ref[i, :, 0], cam_ref[i, :, 1], cam_ref[i, :, 2], color=(0.3, 0.3, 0.3), linewidth=1)
+            ax1.scatter(cam_ref[i, 5, 0], cam_ref[i, 5, 1], cam_ref[i, 5, 2], color=(0.3, 0.3, 0.3), s=40)
+            ax2.scatter(cam_ref[i, 5, 0], cam_ref[i, 5, 1], cam_ref[i, 5, 2], color=(0.3, 0.3, 0.3), s=40)
+
+            # ax3.plot(cam_ref[i, 5, 0], cam_ref[i, 5, 1], cam_ref[i, 5, 2], label='GT', marker='.',
+            #          color=(0.3, 0.3, 0.3)) #linestyle='-'
         c = np.array(color(float(i)/N))*0.8
-        ax1.plot(cam[i,:,0],cam[i,:,1],cam[i,:,2],color=c)
-        ax2.plot(cam[i,:,0],cam[i,:,1],cam[i,:,2],color=c)
-        ax1.scatter(cam[i,5,0],cam[i,5,1],cam[i,5,2],color=c,s=40)
-        ax2.scatter(cam[i,5,0],cam[i,5,1],cam[i,5,2],color=c,s=40)
-    png_fname = "{}/{}.png".format(path,ep)
-    plt.savefig(png_fname,dpi=75)
+        # c = np.array(color(float(1) / N)) * 0.8
+        # c = (0.7, 0, 0)
+        ax1.plot(cam[i, :, 0], cam[i, :, 1], cam[i, :, 2], color=c)
+        ax2.plot(cam[i, :, 0], cam[i, :, 1], cam[i, :, 2], color=c)
+        ax1.scatter(cam[i, 5, 0], cam[i, 5, 1], cam[i, 5, 2], color=c, s=40)
+        ax2.scatter(cam[i, 5, 0], cam[i, 5, 1], cam[i, 5, 2], color=c, s=40)
+
+        # ax3.plot(cam[i, 5, 0], cam[i, 5, 1], cam[i, 5, 2], label='ours', marker='.',
+        #          color=c) #linestyle='-'
+    c = np.array(color(float(i) / N)) * 0.8
+    ax3.plot(cam_ref[:, 5, 0], cam_ref[:, 5, 1], cam_ref[:, 5, 2],'cx--' ,label='GT')  # linestyle='-'
+    ax3.plot(cam[:, 5, 0], cam[:, 5, 1], cam[:, 5, 2],'rx:', label='ours',markersize=5)  # linestyle='-'
+    ax3.legend(loc=(0.22,0.72))
+
+    png_fname = "{}/{}.png".format(path, ep)
+    plt.savefig(png_fname, dpi=75)
     # clean up
     plt.clf()
+
+def plot_save_poses(opt, fig, pose, pose_ref=None, path=None, ep=None):
+    # get the camera meshes
+    _, _, cam = get_camera_mesh(pose, depth=opt.visdom.cam_depth)
+    cam = cam.numpy()
+    if pose_ref is not None:
+        _, _, cam_ref = get_camera_mesh(pose_ref, depth=opt.visdom.cam_depth)
+        cam_ref = cam_ref.numpy()  # (N,10,3)
+    # set up plot window(s)
+    plt.title("epoch {}".format(ep))
+    ax1 = fig.add_subplot(121, projection="3d")
+    ax2 = fig.add_subplot(122, projection="3d")
+
+    setup_3D_plot(ax1, elev=-90, azim=-90, lim=edict(x=(-1, 1), y=(-1, 1), z=(-1, 1)))  # x=(-1,1),y=(-1,1),z=(-1,1)
+    setup_3D_plot(ax2, elev=0, azim=-90, lim=edict(x=(-1, 1), y=(-1, 1), z=(-1, 1)))
+
+    ax1.set_title("forward-facing view", pad=0)
+    ax2.set_title("top-down view", pad=0)
+    plt.subplots_adjust(left=0, right=1, bottom=0, top=0.95, wspace=0, hspace=0)
+    plt.margins(tight=True, x=0, y=0)
+    # plot the cameras
+    N = len(cam)
+    color = plt.get_cmap("gist_rainbow")
+
+    for i in range(N):
+        if pose_ref is not None:
+            ax1.plot(cam_ref[i, :, 0], cam_ref[i, :, 1], cam_ref[i, :, 2], color=(0.3, 0.3, 0.3), linewidth=1)
+            ax2.plot(cam_ref[i, :, 0], cam_ref[i, :, 1], cam_ref[i, :, 2], color=(0.3, 0.3, 0.3), linewidth=1)
+            ax1.scatter(cam_ref[i, 5, 0], cam_ref[i, 5, 1], cam_ref[i, 5, 2], color=(0.3, 0.3, 0.3), s=40)
+            ax2.scatter(cam_ref[i, 5, 0], cam_ref[i, 5, 1], cam_ref[i, 5, 2], color=(0.3, 0.3, 0.3), s=40)
+
+        # c = np.array(color(float(i)/N))*0.8
+        c = (1, 0, 0)
+        ax1.plot(cam[i, :, 0], cam[i, :, 1], cam[i, :, 2], color=c)
+        ax2.plot(cam[i, :, 0], cam[i, :, 1], cam[i, :, 2], color=c)
+        ax1.scatter(cam[i, 5, 0], cam[i, 5, 1], cam[i, 5, 2], color=c, s=40)
+        ax2.scatter(cam[i, 5, 0], cam[i, 5, 1], cam[i, 5, 2], color=c, s=40)
+    png_fname = "{}/{}.png".format(path, ep)
+    plt.savefig(png_fname, dpi=75)
+    # clean up
+    plt.clf()
+
+
 
 def plot_save_poses_blender(opt,fig,pose,pose_ref=None,path=None,ep=None):
     # get the camera meshes
@@ -250,7 +310,7 @@ def plot_save_poses_blender(opt,fig,pose,pose_ref=None,path=None,ep=None):
         ax.plot([cam[i,5,0],cam_ref[i,5,0]],
                 [cam[i,5,1],cam_ref[i,5,1]],
                 [cam[i,5,2],cam_ref[i,5,2]],color=(1,0,0),linewidth=3)
-    png_fname = "{}/{}.png".format(path,ep)
+    png_fname = "{}/{}_3d.png".format(path,ep)
     plt.savefig(png_fname,dpi=75)
     # clean up
     plt.clf()
