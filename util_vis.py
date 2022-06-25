@@ -193,10 +193,22 @@ def plot_save_optim_poses(opt, fig, pose, pose_ref=None, path=None, ep=None):
     ax1 = fig.add_subplot(131, projection="3d")
     ax2 = fig.add_subplot(132, projection="3d")
     ax3 = fig.add_subplot(133, projection="3d")
+
+    x_max = np.max([np.max(cam_ref[:, 5, 0]), np.max(cam[:, 5, 0])] )+0.1
+    x_min = np.min([np.min(cam_ref[:, 5, 0]), np.min(cam[:, 5, 0])] )-0.1
+    y_max = np.max([np.max(cam_ref[:, 5, 1]), np.max(cam[:, 5, 1])] )+0.1
+    y_min = np.min([np.min(cam_ref[:, 5, 1]), np.min(cam[:, 5, 1])] )-0.1
+    z_max = np.max([np.max(cam_ref[:, 5, 2]), np.max(cam[:, 5, 1])] )+0.1
+    z_min = np.min([np.min(cam_ref[:, 5, 2]), np.min(cam[:, 5, 1])] )-0.1
+
     setup_3D_plot(ax1, elev=-90, azim=-90, lim=edict(x=(-1, 1), y=(-1, 1), z=(-1, 1)))  # x=(-1,1),y=(-1,1),z=(-1,1)
     setup_3D_plot(ax2, elev=0, azim=-90, lim=edict(x=(-1, 1), y=(-1, 1), z=(-1, 1)))
-    setup_3D_plot(ax3, elev=-90, azim=-90, lim=edict(x=(-1, 1), y=(-1, 1), z=(-1, 1)))  # x=(-1,1),y=(-1,1),z=(-1,1)
+    setup_3D_plot(ax3, elev=-90, azim=-90, lim=edict(x=(x_min, x_max), y=(y_min, y_max), z=(z_min, z_max)))  # x=(-1,1),y=(-1,1),z=(-1,1)
 
+
+
+    ref_color = (0.7,0.2,0.7)
+    pred_color = (0,0.6,0.7)
     ax1.set_title("forward-facing view", pad=0)
     ax2.set_title("top-down view", pad=0)
     ax3.set_title("forward-facing view", pad=0)
@@ -208,16 +220,16 @@ def plot_save_optim_poses(opt, fig, pose, pose_ref=None, path=None, ep=None):
 
     for i in range(N):
         if pose_ref is not None:
-            ax1.plot(cam_ref[i, :, 0], cam_ref[i, :, 1], cam_ref[i, :, 2], color=(0.3, 0.3, 0.3), linewidth=1)
-            ax2.plot(cam_ref[i, :, 0], cam_ref[i, :, 1], cam_ref[i, :, 2], color=(0.3, 0.3, 0.3), linewidth=1)
-            ax1.scatter(cam_ref[i, 5, 0], cam_ref[i, 5, 1], cam_ref[i, 5, 2], color=(0.3, 0.3, 0.3), s=40)
-            ax2.scatter(cam_ref[i, 5, 0], cam_ref[i, 5, 1], cam_ref[i, 5, 2], color=(0.3, 0.3, 0.3), s=40)
+            ref_color = (0.15, 0.15, 0.15)
+            ax1.plot(cam_ref[i, :, 0], cam_ref[i, :, 1], cam_ref[i, :, 2], color=ref_color, linewidth=1)
+            ax2.plot(cam_ref[i, :, 0], cam_ref[i, :, 1], cam_ref[i, :, 2], color=ref_color, linewidth=1)
+            ax1.scatter(cam_ref[i, 5, 0], cam_ref[i, 5, 1], cam_ref[i, 5, 2], color=ref_color, s=40)
+            ax2.scatter(cam_ref[i, 5, 0], cam_ref[i, 5, 1], cam_ref[i, 5, 2], color=ref_color, s=40)
 
             # ax3.plot(cam_ref[i, 5, 0], cam_ref[i, 5, 1], cam_ref[i, 5, 2], label='GT', marker='.',
             #          color=(0.3, 0.3, 0.3)) #linestyle='-'
         c = np.array(color(float(i)/N))*0.8
-        # c = np.array(color(float(1) / N)) * 0.8
-        # c = (0.7, 0, 0)
+        # c = (0, 0.6, 0.7)
         ax1.plot(cam[i, :, 0], cam[i, :, 1], cam[i, :, 2], color=c)
         ax2.plot(cam[i, :, 0], cam[i, :, 1], cam[i, :, 2], color=c)
         ax1.scatter(cam[i, 5, 0], cam[i, 5, 1], cam[i, 5, 2], color=c, s=40)
@@ -225,10 +237,15 @@ def plot_save_optim_poses(opt, fig, pose, pose_ref=None, path=None, ep=None):
 
         # ax3.plot(cam[i, 5, 0], cam[i, 5, 1], cam[i, 5, 2], label='ours', marker='.',
         #          color=c) #linestyle='-'
-    c = np.array(color(float(i) / N)) * 0.8
-    ax3.plot(cam_ref[:, 5, 0], cam_ref[:, 5, 1], cam_ref[:, 5, 2],'cx--' ,label='GT')  # linestyle='-'
-    ax3.plot(cam[:, 5, 0], cam[:, 5, 1], cam[:, 5, 2],'rx:', label='ours',markersize=5)  # linestyle='-'
+    # c = np.array(color(float(i) / N)) * 0.8
+    ref_color = (0.3, 0.3, 0.3)
+    pred_color = (0,0.6,0.7)
+    ax3.plot(cam_ref[:, 5, 0], cam_ref[:, 5, 1], cam_ref[:, 5, 2],c=ref_color ,label='GT')  # linestyle='-' ,'cx--'
+    ax3.plot(cam[:, 5, 0], cam[:, 5, 1], cam[:, 5, 2],c=pred_color, label='BARF',markersize=5)  # linestyle='-' 'rx:'
+    ax3.scatter(cam_ref[:, 5, 0], cam_ref[:, 5, 1], cam_ref[:, 5, 2],c=ref_color ,s=40)  # linestyle='-' ,'cx--'
+    ax3.scatter(cam[:, 5, 0], cam[:, 5, 1], cam[:, 5, 2],c=pred_color,s=40)  # linestyle='-' 'rx:'
     ax3.legend(loc=(0.22,0.72))
+
 
     png_fname = "{}/{}.png".format(path, ep)
     plt.savefig(png_fname, dpi=75)

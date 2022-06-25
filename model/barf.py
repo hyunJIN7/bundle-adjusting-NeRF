@@ -254,7 +254,7 @@ class Model(nerf.Model):
     @torch.no_grad()
     def generate_optim_pose(self,opt):
         self.graph.eval()
-        fig = plt.figure(figsize=(18,10) if opt.data.dataset in ["blender"] else (16,8))
+        fig = plt.figure(figsize=(21,8) if opt.data.dataset in ["blender"] else (16,8))
         cam_path = "{}/poses_iter200000".format(opt.output_path)
         os.makedirs(cam_path,exist_ok=True)
         ep_list = []
@@ -269,8 +269,10 @@ class Model(nerf.Model):
         pose,pose_ref = self.get_all_optitrack_training_poses(opt) #pose_ref == GT
         # TODO: 평균 위치 빼서 중앙으로 옮기기
         N = pose.shape[0]
-        plot_list_index = [i for i in range(0, N, 100)]
-        bounced_value = [2, 5, 8, 16, 25, 27, 34, 35, 46, 101, 119, 120, 110]
+        plot_list_index = [i for i in range(0, N, 30)]
+        # bounced_value =[1,  7, 11, 21, 26, 36, 54, 56, 58, 61, 67, 69, 88, 97, 131]# opti_fan
+        # bounced_value =[1,18, 19,35,38,48,49,56 ,77,83,89,109]# lounge
+        bounced_value =[2,6,20,26,28,33,37,44,45,63,73,87,91  ]# piano
         plot_list_index = np.sort(np.concatenate((plot_list_index,bounced_value)))
 
         if opt.data.dataset in ["iphone","arkit","blender","llff"]:
