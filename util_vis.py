@@ -11,6 +11,7 @@ import imageio
 from easydict import EasyDict as edict
 
 import camera
+import matplotlib.ticker as ticker
 
 @torch.no_grad()
 def tb_image(opt,tb,step,group,name,images,num_vis=None,from_range=(0,1),cmap="gray"):
@@ -140,11 +141,18 @@ def vis_cameras(opt,vis,step,poses=[],colors=["blue","magenta"],plot_dist=True):
 
 def get_camera_mesh(pose,depth=1):
     #TODO camera size control
-    vertices = torch.tensor([[-0.3,-0.3,0.5],
-                             [0.3,-0.3,0.5],
-                             [0.3,0.3,0.5],
-                             [-0.3,0.3,0.5],
+    z = 0.1
+    x = 0.1
+    vertices = torch.tensor([[-x,-x,z],
+                             [x,-x,z],
+                             [x,x,z],
+                             [-0.1,0.1,z],
                              [0,0,0]])*depth
+    # vertices = torch.tensor([[-0.3,-0.3,0.5],
+    #                          [0.3,-0.3,0.5],
+    #                          [0.3,0.3,0.5],
+    #                          [-0.3,0.3,0.5],
+    #                          [0,0,0]])*depth
     # vertices = torch.tensor([[-0.5,-0.5,1],
     #                          [0.5,-0.5,1],
     #                          [0.5,0.5,1],
@@ -198,53 +206,64 @@ def plot_save_optim_poses(opt, fig, pose, pose_ref=None, path=None, ep=None):
     x_min = np.min([np.min(cam_ref[:, 5, 0]), np.min(cam[:, 5, 0])] )-0.1
     y_max = np.max([np.max(cam_ref[:, 5, 1]), np.max(cam[:, 5, 1])] )+0.1
     y_min = np.min([np.min(cam_ref[:, 5, 1]), np.min(cam[:, 5, 1])] )-0.1
-    z_max = np.max([np.max(cam_ref[:, 5, 2]), np.max(cam[:, 5, 1])] )+0.1
-    z_min = np.min([np.min(cam_ref[:, 5, 2]), np.min(cam[:, 5, 1])] )-0.1
+    z_max = np.max([np.max(cam_ref[:, 5, 2]), np.max(cam[:, 5, 2])])+0.05
+    z_min = np.min([np.min(cam_ref[:, 5, 2]), np.min(cam[:, 5, 2])])-0.05
 
-    setup_3D_plot(ax1, elev=-90, azim=-90, lim=edict(x=(-1, 1), y=(-1, 1), z=(-1, 1)))  # x=(-1,1),y=(-1,1),z=(-1,1)
-    setup_3D_plot(ax2, elev=0, azim=-90, lim=edict(x=(-1, 1), y=(-1, 1), z=(-1, 1)))
+    setup_3D_plot(ax1, elev=-90, azim=-90, lim=edict(x=(x_min, x_max), y=(y_min, y_max), z=(z_min, z_max)))  # x=(-1,1),y=(-1,1),z=(-1,1)
+    setup_3D_plot(ax2, elev=0, azim=-90, lim=edict(x=(x_min, x_max), y=(y_min, y_max), z=(z_min, z_max)))
     setup_3D_plot(ax3, elev=-90, azim=-90, lim=edict(x=(x_min, x_max), y=(y_min, y_max), z=(z_min, z_max)))  # x=(-1,1),y=(-1,1),z=(-1,1)
 
 
-
-    ref_color = (0.7,0.2,0.7)
-    pred_color = (0,0.6,0.7)
-    ax1.set_title("forward-facing view", pad=0)
-    ax2.set_title("top-down view", pad=0)
-    ax3.set_title("forward-facing view", pad=0)
+    ax1.set_title("forward-facing view", pad=0, fontsize=18)
+    ax2.set_title("top-down view", pad=0, fontsize=18)
+    ax3.set_title("forward-facing view", pad=0, fontsize=18)
     plt.subplots_adjust(left=0, right=1, bottom=0, top=0.95, wspace=0, hspace=0)
     plt.margins(tight=True, x=0, y=0)
     # plot the cameras
     N = len(cam)
     color = plt.get_cmap("gist_rainbow")
 
+    arkit_color = (0.1,0.65,0.65)
+    # plt.plot(arkit_step, arkit_psnr, label='Ours', c=(00, 139 / 255.0, 139 / 255.0))
+    # plt.plot(iphone_step, iphone_psnr, label='BARF', c=(255 / 255.0, 99 / 255.0, 71 / 255.0))
     for i in range(N):
         if pose_ref is not None:
-            ref_color = (0.15, 0.15, 0.15)
+            ref_color = (0.3, 0.3, 0.3)
+            # ref_color = (0.7, 0.2, 0.7)
             ax1.plot(cam_ref[i, :, 0], cam_ref[i, :, 1], cam_ref[i, :, 2], color=ref_color, linewidth=1)
             ax2.plot(cam_ref[i, :, 0], cam_ref[i, :, 1], cam_ref[i, :, 2], color=ref_color, linewidth=1)
             ax1.scatter(cam_ref[i, 5, 0], cam_ref[i, 5, 1], cam_ref[i, 5, 2], color=ref_color, s=40)
             ax2.scatter(cam_ref[i, 5, 0], cam_ref[i, 5, 1], cam_ref[i, 5, 2], color=ref_color, s=40)
 
-            # ax3.plot(cam_ref[i, 5, 0], cam_ref[i, 5, 1], cam_ref[i, 5, 2], label='GT', marker='.',
-            #          color=(0.3, 0.3, 0.3)) #linestyle='-'
         c = np.array(color(float(i)/N))*0.8
-        # c = (0, 0.6, 0.7)
+        c=arkit_color
+
         ax1.plot(cam[i, :, 0], cam[i, :, 1], cam[i, :, 2], color=c)
         ax2.plot(cam[i, :, 0], cam[i, :, 1], cam[i, :, 2], color=c)
         ax1.scatter(cam[i, 5, 0], cam[i, 5, 1], cam[i, 5, 2], color=c, s=40)
         ax2.scatter(cam[i, 5, 0], cam[i, 5, 1], cam[i, 5, 2], color=c, s=40)
 
-        # ax3.plot(cam[i, 5, 0], cam[i, 5, 1], cam[i, 5, 2], label='ours', marker='.',
-        #          color=c) #linestyle='-'
-    # c = np.array(color(float(i) / N)) * 0.8
-    ref_color = (0.3, 0.3, 0.3)
-    pred_color = (0,0.6,0.7)
-    ax3.plot(cam_ref[:, 5, 0], cam_ref[:, 5, 1], cam_ref[:, 5, 2],c=ref_color ,label='GT')  # linestyle='-' ,'cx--'
-    ax3.plot(cam[:, 5, 0], cam[:, 5, 1], cam[:, 5, 2],c=pred_color, label='BARF',markersize=5)  # linestyle='-' 'rx:'
+    ax3.plot(cam_ref[:, 5, 0], cam_ref[:, 5, 1], cam_ref[:, 5, 2],c=ref_color ,label='GT')
+    ax3.plot(cam[:, 5, 0], cam[:, 5, 1], cam[:, 5, 2],c=arkit_color, label='Ours',markersize=5)  # linestyle='-' 'rx:'
     ax3.scatter(cam_ref[:, 5, 0], cam_ref[:, 5, 1], cam_ref[:, 5, 2],c=ref_color ,s=40)  # linestyle='-' ,'cx--'
-    ax3.scatter(cam[:, 5, 0], cam[:, 5, 1], cam[:, 5, 2],c=pred_color,s=40)  # linestyle='-' 'rx:'
+    ax3.scatter(cam[:, 5, 0], cam[:, 5, 1], cam[:, 5, 2],c=arkit_color,s=40)  # linestyle='-' 'rx:'
     ax3.legend(loc=(0.22,0.72))
+
+
+    ax1.xaxis.set_major_locator(ticker.MultipleLocator(0.2))
+    ax1.yaxis.set_major_locator(ticker.MultipleLocator(0.1))
+    ax1.zaxis.set_major_locator(ticker.MultipleLocator(0.1))
+    ax1.xaxis.set_minor_locator(ticker.MultipleLocator(0.1))
+
+    ax2.xaxis.set_major_locator(ticker.MultipleLocator(0.2))
+    ax2.yaxis.set_major_locator(ticker.MultipleLocator(0.1))
+    ax2.zaxis.set_major_locator(ticker.MultipleLocator(0.1))
+    ax2.xaxis.set_minor_locator(ticker.MultipleLocator(0.1))
+
+    ax3.xaxis.set_major_locator(ticker.MultipleLocator(0.2))
+    ax3.yaxis.set_major_locator(ticker.MultipleLocator(0.1))
+    ax3.zaxis.set_major_locator(ticker.MultipleLocator(0.1))
+    ax3.xaxis.set_minor_locator(ticker.MultipleLocator(0.1))
 
 
     png_fname = "{}/{}.png".format(path, ep)
@@ -305,13 +324,22 @@ def plot_save_poses_blender(opt,fig,pose,pose_ref=None,path=None,ep=None):
     # set up plot window(s)
     ax = fig.add_subplot(111,projection="3d")
     ax.set_title("epoch {}".format(ep),pad=0)
-    setup_3D_plot(ax,elev=45,azim=35,lim=edict(x=(-3,3),y=(-3,3),z=(-3,2.4)))
+
+    x_max = np.max([np.max(cam_ref[:, 5, 0]), np.max(cam[:, 5, 0])]) + 0.1
+    x_min = np.min([np.min(cam_ref[:, 5, 0]), np.min(cam[:, 5, 0])]) - 0.1
+    y_max = np.max([np.max(cam_ref[:, 5, 1]), np.max(cam[:, 5, 1])]) + 0.1
+    y_min = np.min([np.min(cam_ref[:, 5, 1]), np.min(cam[:, 5, 1])]) - 0.1
+    z_max = np.max([np.max(cam_ref[:, 5, 2]), np.max(cam[:, 5, 2])]) + 0.05
+    z_min = np.min([np.min(cam_ref[:, 5, 2]), np.min(cam[:, 5, 2])]) - 0.05
+
+    setup_3D_plot(ax,elev=45,azim=115,lim=edict(x=(x_min, x_max), y=(y_min, y_max), z=(z_min, z_max)))
     plt.subplots_adjust(left=0,right=1,bottom=0,top=0.95,wspace=0,hspace=0)
     plt.margins(tight=True,x=0,y=0)
     # plot the cameras
     N = len(cam)
-    ref_color = (0.7,0.2,0.7)
-    pred_color = (0,0.6,0.7)
+    # ref_color = (0.7,0.2,0.7)
+    ref_color = (0.3, 0.3, 0.3)
+    pred_color = (0.1,0.65,0.65)#(0,0.6,0.7)
     ax.add_collection3d(Poly3DCollection([v[:4] for v in cam_ref],alpha=0.2,facecolor=ref_color))
     for i in range(N):
         ax.plot(cam_ref[i,:,0],cam_ref[i,:,1],cam_ref[i,:,2],color=ref_color,linewidth=0.5)

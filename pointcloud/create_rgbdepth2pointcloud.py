@@ -35,7 +35,7 @@ def config_parser():
 
 def draw_image(rgbd):
     plt.subplot(1, 2, 1)
-    plt.title('grayscale image')
+    plt.title('rgb image')
     plt.imshow(rgbd.color)
     plt.subplot(1, 2, 2)
     plt.title('depth image')
@@ -43,8 +43,11 @@ def draw_image(rgbd):
     plt.show()
 
 def load_iamge_data(args):
-    color_dir = os.path.join(args.basedir, args.expname,'color')
-    depth_dir = os.path.join(args.basedir, args.expname,'depth')
+    # color_dir = os.path.join(args.basedir, args.expname,'color')
+    # depth_dir = os.path.join(args.basedir, args.expname,'depth')
+
+    color_dir = os.path.join('pointcloud','color')
+    depth_dir = os.path.join('pointcloud','depth')
 
     print("Read dataset")
     color_list = os.listdir(color_dir)
@@ -66,8 +69,8 @@ def load_iamge_data(args):
     return all_color, all_depth, all_rgbd
 
 # 나중에 파일 로드해서 읽어오는 방식으로 수정
-def load_intrinsic(args):
-    raw_intr = [1510.772583,1510.772583,964.018799,722.603638] #fx fy cx cy
+def load_intrinsic(args,raw_intr):
+
     ori_size = (1920, 1440)
     size = (640, 480)
     raw_intr[0] /= (ori_size[0] / size[0])
@@ -102,10 +105,10 @@ def draw_pcd(args):
     all_pcd= o3d.geometry.PointCloud()
 
     #TODO:나중에 여기도 처리
-    raw_intr = [1510.687378, 1510.687378, 963.860107, 722.338562] #fx fy cx cy
+    raw_intr = [1510.745728,1510.745728,964.076294,722.721863] #fx fy cx cy
     ori_size = (1920, 1440)
     size = (640, 480)
-    intr = load_intrinsic(args)
+    intr = load_intrinsic(args,raw_intr)
     # extrin = load_extrinsic(args)
 
     # for rgbd_image in enumerate(all_rgbd):

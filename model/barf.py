@@ -281,8 +281,8 @@ class Model(nerf.Model):
             dict(
                 blender=util_vis.plot_save_poses_blender,
                 llff=util_vis.plot_save_poses,
-                arkit=util_vis.plot_save_optim_poses,
-                iphone=util_vis.plot_save_optim_poses,
+                arkit=util_vis.plot_save_poses_blender,#plot_save_optim_poses,
+                iphone=util_vis.plot_save_poses_blender,#plot_save_optim_poses,
             )[opt.data.dataset](opt,fig,pose_aligned[plot_list_index],pose_ref=pose_ref[plot_list_index],path=cam_path,ep=ep)
             # TODO : .txt로 저장하기 timestamp need  train
 
