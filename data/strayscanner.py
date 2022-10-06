@@ -22,7 +22,13 @@ class Dataset(base.Dataset):
         self.path = "{}/{}".format(self.root,opt.data.scene)
         self.split = split
         # load/parse metadata
-        pose_path = "{}/odometry_{}.txt".format(self.path,split)
+        intrin_file = os.path.join(self.path, 'camera_matrix.csv')
+        assert os.path.isfile(intrin_file), "camera info:{} not found".format(intrin_file)
+        intrinsics = np.loadtxt(intrin_file, delimiter=',')
+        intrinsics = torch.from_numpy(np.array(intrinsics)).float()
+        self.intr = intrinsics
+
+        pose_path = "{}/odometry_{}.csv".format(self.path,split)
         # pose_path = os.path.join('./', pose_path)
         assert os.path.isfile(pose_path), "pose info:{} not found".format(pose_path)
         odometry = np.loadtxt(pose_path, delimiter=',')#, skiprows=1
@@ -35,7 +41,10 @@ class Dataset(base.Dataset):
             T_WC[:3, :3] = Rotation.from_quat(quaternion).as_matrix()
             T_WC[:3, 3] = position
             poses.append(T_WC)
-        # pose = np.array(pose)
+        poses = torch.from_numpy(np.array(poses)).float()
+        self.list = poses
+        self.gt_pose = poses
+        self.opti_pose = poses
 
         # if subset and split != 'test': self.list = self.list[:subset] #train,val
         # preload dataset
@@ -45,9 +54,7 @@ class Dataset(base.Dataset):
             self.depth = self.preload_threading(opt, self.get_depth,data_str="depth imgs")
             self.confidence = self.preload_threading(opt, self.get_confidence, data_str="confidence")
 
-        self.list = poses
-        self.gt_pose = poses
-        self.opti_pose = poses
+
         ## for GT data(optitrack)
         # gt_pose_fname = "{}/opti_transforms_{}.txt".format(self.path,split)
         # gt_pose_file = os.path.join('./', gt_pose_fname)
@@ -129,10 +136,7 @@ class Dataset(base.Dataset):
         return image
 
     def get_camera(self,opt,idx):
-        intrin_file = os.path.join(self.path, 'camera_matrix.csv')
-        assert os.path.isfile(intrin_file), "camera info:{} not found".format(intrin_file)
-        intrinsics = np.loadtxt(intrin_file, delimiter=',')
-
+        intrinsics = self.intr
         pose_raw = torch.tensor(self.list[idx],dtype=torch.float32)
         pose = self.parse_raw_camera(opt,pose_raw) #pose_raw (3,4)
         return intrinsics,pose
