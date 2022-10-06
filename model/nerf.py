@@ -220,10 +220,6 @@ class Model(base.Model):
                 origin_novel_view : train 과정에서 optimize한 포즈 범위에서 novel_view 생성
 
             """
-            # if opt.data.dataset in ["iphone"]:
-            #     pose_GT = self.train_data.get_all_gt_camera_poses(opt).to(opt.device)
-            #     pose_pred=None
-            # else:
             pose_pred,pose_GT = self.get_all_training_poses(opt)
             poses = pose_GT
             if opt.model == "barf" and opt.data.dataset == "llff":
