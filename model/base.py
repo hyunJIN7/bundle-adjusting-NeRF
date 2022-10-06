@@ -1,6 +1,7 @@
 import numpy as np
 import os,sys,time
 import torch
+import torch.nn as nn
 import torch.nn.functional as torch_F
 import torchvision
 import torchvision.transforms.functional as torchvision_F
@@ -202,3 +203,29 @@ class Graph(torch.nn.Module):
     def MSE_loss(self,pred,label=0):
         loss = (pred.contiguous()-label)**2
         return loss.mean()
+
+
+    #TODO : add depth
+    def is_not_in_expected_distribution(self,depth_mean, depth_var, depth_measurement_mean, depth_measurement_std):
+        delta_greater_than_expected = ((depth_mean - depth_measurement_mean).abs() - depth_measurement_std) > 0.
+        var_greater_than_expected = depth_measurement_std.pow(2) < depth_var
+        return torch.logical_or(delta_greater_than_expected, var_greater_than_expected)
+
+    def compute_depth_loss(self,depth_map, z_vals, weights, target_depth):
+        pred_mean = depth_map
+        if pred_mean.shape[0] == 0:
+            return torch.zeros((1,), device=depth_map.device, requires_grad=True)
+        pred_var = ((z_vals - pred_mean.unsqueeze(-1)).pow(2) * weights).sum(
+            -1) + 1e-5
+        target_mean = target_depth[..., 0]
+        target_std = target_depth[..., 1]
+        apply_depth_loss = self.is_not_in_expected_distribution(pred_mean, pred_var, target_mean, target_std)
+        pred_mean = pred_mean[apply_depth_loss]
+        if pred_mean.shape[0] == 0:
+            return torch.zeros((1,), device=depth_map.device, requires_grad=True)
+        pred_var = pred_var[apply_depth_loss]
+        target_mean = target_mean[apply_depth_loss]
+        target_std = target_std[apply_depth_loss]
+        f = nn.GaussianNLLLoss(eps=0.001)
+        return float(pred_mean.shape[0]) / float(target_depth.shape[0]) * f(pred_mean, target_mean, pred_var)
+

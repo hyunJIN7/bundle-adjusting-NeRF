@@ -13,6 +13,7 @@ from . import base
 import camera
 from util import log,debug
 from scipy.spatial.transform import Rotation
+import cv2
 
 class Dataset(base.Dataset):
     def __init__(self,opt,split="train",subset=None):
@@ -124,10 +125,12 @@ class Dataset(base.Dataset):
         return image
 
     def get_depth(self,opt,idx):
-        image_fname = "{}.png".format(str(int(self.frames[idx][1])).zfill(5))
-        image_fname = "{}/depth_{}/{}".format(self.path,self.split,image_fname)
-        image = PIL.Image.fromarray(imageio.imread(image_fname)) # directly using PIL.Image.open() leads to weird corruption....
-        return image
+
+        depth_fname = "{}.png".format(str(int(self.frames[idx][1])).zfill(5))
+        depth_fname = "{}/depth_{}/{}".format(self.path,self.split,depth_fname)
+        depth = cv2.imread(depth_fname, cv2.IMREAD_UNCHANGED).astype(np.float64)
+        # image = PIL.Image.fromarray(imageio.imread(image_fname)) # directly using PIL.Image.open() leads to weird corruption....
+        return depth
 
     def get_confidence(self,opt,idx):
         image_fname = "{}.png".format(str(int(self.frames[idx][1])).zfill(5))

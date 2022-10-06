@@ -15,6 +15,7 @@ from util import log,debug
 from . import base
 import camera
 
+
 # ============================ main engine for training and evaluation ============================
 
 class Model(base.Model):
@@ -118,7 +119,7 @@ class Model(base.Model):
             pose = pose_GT # self.train_data.get_all_camera_poses(opt).to(opt.device)  #(3,4)
             if opt.camera.noise:
                 pose = camera.pose.compose([self.graph.pose_noise,pose])
-        elif opt.data.dataset in ["arkit"] :
+        elif opt.data.dataset in ["arkit","strayscanner"] :
             pose_GT = self.train_data.get_all_gt_camera_poses(opt).to(opt.device)  # (3,4)
             pose = self.train_data.get_all_camera_poses(opt).to(opt.device)  #initial pose
         else:
@@ -138,7 +139,7 @@ class Model(base.Model):
             pose = pose_GT # self.train_data.get_all_camera_poses(opt).to(opt.device)  #(3,4)
             if opt.camera.noise:
                 pose = camera.pose.compose([self.graph.pose_noise,pose])
-        elif opt.data.dataset in ["arkit"] :
+        elif opt.data.dataset in ["arkit","strayscanner"] :
             pose_GT = self.train_data.get_all_optitrack_camera_poses(opt).to(opt.device)  # (3,4) optitrack
             pose = self.train_data.get_all_camera_poses(opt).to(opt.device)  #initial pose
         else:
@@ -160,7 +161,7 @@ class Model(base.Model):
         for i,batch in enumerate(loader):
             var = edict(batch)
             var = util.move_to_device(var,opt.device)
-            if opt.data.dataset in ["iphone","arkit","blender"] and opt.optim.test_photo:
+            if opt.data.dataset in ["iphone","arkit","blender","strayscanner"] and opt.optim.test_photo:
                 # run test-time optimization to factorize imperfection in optimized poses from view synthesis evaluation
                 var = self.evaluate_test_time_photometric_optim(opt,var)
             var = self.graph.forward(opt,var,mode="eval")
@@ -280,7 +281,7 @@ class Model(base.Model):
             for i, batch in enumerate(loader):
                 var = edict(batch)
                 var = util.move_to_device(var, opt.device)
-                if opt.data.dataset in ["iphone", "arkit", "blender"] and opt.optim.test_photo:
+                if opt.data.dataset in ["iphone", "arkit", "blender","strayscanner"] and opt.optim.test_photo:
                     # run test-time optimization to factorize imperfection in optimized poses from view synthesis evaluation
                     var = self.evaluate_test_time_photometric_optim(opt, var)
                 var = self.graph.forward(opt, var, mode="eval")
@@ -315,7 +316,7 @@ class Model(base.Model):
 
     @torch.no_grad()
     def generate_videos_synthesis(self,opt,eps=1e-10):
-        if opt.data.dataset in ["iphone", "arkit"]:  #arkit,iphone test,novel 둘 다 생성위함
+        if opt.data.dataset in ["iphone", "arkit","strayscanner"]:  #arkit,iphone test,novel 둘 다 생성위함
             # pose_pred,pose_GT = self.get_all_training_poses(opt)
             # #novel view에서 iphone도 training GT 원본 가져오게 바꿈,
             # 저 한줄코드는 nerf.py get_all_training_poses가 아닌  barf.py get_all_training_poses로 접근
@@ -461,6 +462,14 @@ class Graph(base.Graph):
         if opt.loss_weight.render_fine is not None:
             assert(opt.nerf.fine_sampling)
             loss.render_fine = self.MSE_loss(var.rgb_fine,image)
+
+        #TODO : add depth
+        # if opt.depth.depth_loss_weight > 0 :
+        #     depth = var.depth.view(batch_size,3,opt.H*opt.W).permute(0,2,1)
+        #     if opt.nerf.rand_rays and mode in ["train","test-optim"]:
+                # depth = depth[:,var.ray_idx]
+        #     depth_loss = self.compute_depth_loss(depth, extras['z_vals'], extras['weights'], target_d, target_vd)
+        #     loss = loss + opt.depth.depth_loss_weight * depth_loss
         return loss
 
     def get_pose(self,opt,var,mode=None):

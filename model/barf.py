@@ -93,7 +93,7 @@ class Model(nerf.Model):
             pose = pose_GT # self.train_data.get_all_camera_poses(opt).to(opt.device)  #(3,4)
             if opt.camera.noise:
                 pose = camera.pose.compose([self.graph.pose_noise,pose])
-        elif opt.data.dataset in ["arkit"] :
+        elif opt.data.dataset in ["arkit","strayscanner"] :
             pose_GT = self.train_data.get_all_gt_camera_poses(opt).to(opt.device)  # (3,4)
             pose = self.train_data.get_all_camera_poses(opt).to(opt.device)  #initial pose
         else:
@@ -113,7 +113,7 @@ class Model(nerf.Model):
             pose = pose_GT # self.train_data.get_all_camera_poses(opt).to(opt.device)  #(3,4)
             if opt.camera.noise:
                 pose = camera.pose.compose([self.graph.pose_noise,pose])
-        elif opt.data.dataset in ["arkit"] :
+        elif opt.data.dataset in ["arkit","strayscanner"] :
             pose_GT = self.train_data.get_all_optitrack_camera_poses(opt).to(opt.device)  # (3,4) optitrack
             pose = self.train_data.get_all_camera_poses(opt).to(opt.device)  #initial pose
         else:
@@ -209,13 +209,14 @@ class Model(nerf.Model):
             # get the camera poses
             pose,pose_ref = self.get_all_optitrack_training_poses(opt) #pose_ref == GT
             #2D
-            if opt.data.dataset in ["iphone","arkit","blender","llff"]:
+            if opt.data.dataset in ["iphone","arkit","blender","llff","strayscanner"]:
                 pose_aligned,_ = self.prealign_cameras(opt,pose,pose_ref)
                 pose_aligned,pose_ref = pose_aligned.detach().cpu(),pose_ref.detach().cpu()
                 dict(
                     blender=util_vis.plot_save_poses_blender,
                     llff=util_vis.plot_save_poses,
                     arkit=util_vis.plot_save_poses,
+                    strayscanner=util_vis.plot_save_poses,
                     iphone=util_vis.plot_save_poses,
                 )[opt.data.dataset](opt,fig,pose_aligned,pose_ref=pose_ref,path=cam_path,ep=ep)
             else:
@@ -275,13 +276,14 @@ class Model(nerf.Model):
         bounced_value =[2,6,20,26,28,33,37,44,45,63,73,87,91  ]# piano
         plot_list_index = np.sort(np.concatenate((plot_list_index,bounced_value)))
 
-        if opt.data.dataset in ["iphone","arkit","blender","llff"]:
+        if opt.data.dataset in ["iphone","arkit","blender","llff","strayscanner"]:
             pose_aligned,_ = self.prealign_cameras(opt,pose,pose_ref)
             pose_aligned,pose_ref = pose_aligned.detach().cpu(),pose_ref.detach().cpu()
             dict(
                 blender=util_vis.plot_save_poses_blender,
                 llff=util_vis.plot_save_poses,
                 arkit=util_vis.plot_save_poses_blender,#plot_save_optim_poses,
+                strayscanner=util_vis.plot_save_poses_blender,  # plot_save_optim_poses,
                 iphone=util_vis.plot_save_poses_blender,#plot_save_optim_poses,
             )[opt.data.dataset](opt,fig,pose_aligned[plot_list_index],pose_ref=pose_ref[plot_list_index],path=cam_path,ep=ep)
             # TODO : .txt로 저장하기 timestamp need  train
@@ -334,7 +336,7 @@ class Model(nerf.Model):
         pose_aligned, _ = self.prealign_cameras(opt, pose, pose_ref)
         pose_aligned, pose_ref = pose_aligned.detach().cpu(), pose_ref.detach().cpu()
         for i in range(N):
-            if opt.data.dataset in ["iphone", "arkit", "blender", "llff"]:
+            if opt.data.dataset in ["iphone", "arkit", "blender", "llff","strayscanner"]:
                 # pose_aligned, _ = self.prealign_cameras(opt, pose, pose_ref)
                 # pose_aligned, pose_ref = pose_aligned.detach().cpu(), pose_ref.detach().cpu()
 
@@ -342,6 +344,7 @@ class Model(nerf.Model):
                     blender=util_vis.plot_save_poses_blender,
                     llff=util_vis.plot_save_poses,
                     arkit=util_vis.plot_save_poses,
+                    strayscanner=util_vis.plot_save_poses,
                     iphone=util_vis.plot_save_poses,
                 )[opt.data.dataset](opt, fig, pose_aligned[i], pose_ref=pose_ref[i], path=cam_path, ep=i)
             else:
@@ -374,13 +377,14 @@ class Model(nerf.Model):
         pose_aligned, _ = self.prealign_cameras(opt, pose, pose_ref)
         pose_aligned, pose_ref = pose_aligned.detach().cpu(), pose_ref.detach().cpu()
         for i in range(N):
-            if opt.data.dataset in ["iphone", "arkit", "blender", "llff"]:
+            if opt.data.dataset in ["iphone", "arkit", "blender", "llff","strayscanner"]:
                 # pose_aligned, _ = self.prealign_cameras(opt, pose, pose_ref)
                 # pose_aligned, pose_ref = pose_aligned.detach().cpu(), pose_ref.detach().cpu()
                 dict(
                     blender=util_vis.plot_save_poses_blender,
                     llff=util_vis.plot_save_poses,
                     arkit=util_vis.plot_save_poses_for_oneNall,
+                    strayscanner = util_vis.plot_save_poses_for_oneNall,
                     iphone=util_vis.plot_save_poses_for_oneNall,
                 )[opt.data.dataset](opt, fig, pose_aligned[i], pose_ref=pose_ref, path=cam_path, ep=i)
             else:
@@ -432,7 +436,7 @@ class Graph(nerf.Graph):
     def get_pose(self,opt,var,mode=None):
         if mode=="train":
             # add the pre-generated pose perturbations
-            if opt.data.dataset in ["arkit","blender"] :
+            if opt.data.dataset in ["arkit","blender","strayscanner"] :
                 if opt.camera.noise:
                     var.pose_noise = self.pose_noise[var.idx]
                     pose = camera.pose.compose([var.pose_noise,var.pose])
