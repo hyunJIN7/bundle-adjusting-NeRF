@@ -18,7 +18,8 @@ DEPTH_WIDTH = 256
 DEPTH_HEIGHT = 192
 MAX_DEPTH = 20.0
 
-# python data/process_strayscanner_data.py --basedir ./data/strayscanner/computer
+#conda activate StrayVisualizer-main
+# python data/process_strayscanner_data.py --basedir ./data/strayscanner/computer2
 # python data/process_strayscanner_data.py --basedir ./data/strayscanner/dinosaur
 def config_parser():
     import configargparse
@@ -84,8 +85,10 @@ def process_stray_scanner(args, data, split = 'train'):
     for i, (rgb, depth, confidence, pose) in enumerate(zip(rgbs, depths,confidences,poses)):
         #pose :  timestamp, frame, x, y, z, qx, qy, qz, qw
         cv2.imwrite(os.path.join(rgb_path, str(int(pose[1])).zfill(5) + '.png'), rgb)
-        cv2.imwrite(os.path.join(depth_path, str(int(pose[1])).zfill(5) + '.png'), depth)
-        cv2.imwrite(os.path.join(confidence_path, str(int(pose[1])).zfill(5) + '.png'), confidence)
+        np.save(os.path.join(depth_path, str(int(pose[1])).zfill(5) + '.npy'), depth)
+        np.save(os.path.join(confidence_path, str(int(pose[1])).zfill(5) + '.npy'), confidence)
+        # cv2.imwrite(os.path.join(depth_path, str(int(pose[1])).zfill(5) + '.npy'), depth)
+        # cv2.imwrite(os.path.join(confidence_path, str(int(pose[1])).zfill(5) + '.npy'), confidence)
         wr.writerow(pose)
     pose_file.close()
 
