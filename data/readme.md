@@ -1,3 +1,13 @@
+# process_strayscanner.py
+
+```python data/process_strayscanner_data.py --basedir ./data/strayscanner/computer```
+
+- barf 가상환경으로 해보고 안되면 strayscanner 의 가상환경으로 진행.
+- 이 코드는 data 폴더로 이동해서 실행할 필요 없음. 코드 경로 제대로 작성함.
+- 아직 strayscanner 프레임 확인 안함.
+- train 100개만 뽑았는데 나중에 linspace로 간격 더 넓게 뽑자.
+
+
 # process_arkit_data.py
 
 ### 사용법
