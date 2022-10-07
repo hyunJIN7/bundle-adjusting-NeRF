@@ -20,7 +20,7 @@ from PIL import Image
 class Dataset(base.Dataset):
 
     def __init__(self,opt,split="train",subset=None):
-        self.raw_H,self.raw_W = 1080,1920
+        self.raw_H,self.raw_W = 192,256
         super().__init__(opt,split)
         self.root = opt.data.root or "data/iphone"
         self.path = "{}/{}".format(self.root,opt.data.scene)

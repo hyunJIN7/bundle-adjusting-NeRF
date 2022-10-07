@@ -18,7 +18,7 @@ from PIL import Image
 
 class Dataset(base.Dataset):
     def __init__(self,opt,split="train",subset=None):
-        self.raw_H,self.raw_W = 256,192
+        self.raw_H,self.raw_W = 192,256
         super().__init__(opt,split)
         self.root = opt.data.root or "data/strayscanner"
         self.path = "{}/{}".format(self.root,opt.data.scene)
@@ -33,11 +33,12 @@ class Dataset(base.Dataset):
         self.intr = intrinsics
 
         pose_path = "{}/odometry_{}.csv".format(self.path,split)
-        # pose_path = os.path.join('./', pose_path)
         assert os.path.isfile(pose_path), "pose info:{} not found".format(pose_path)
         odometry = np.loadtxt(pose_path, delimiter=',')#, skiprows=1
         self.frames = odometry
         poses = []
+        depth = []
+        confidence = []
         for line in odometry: # timestamp, frame(float ex 1.0), x, y, z, qx, qy, qz, qw
             position = line[2:5]
             quaternion = line[5:]
@@ -45,17 +46,31 @@ class Dataset(base.Dataset):
             T_WC[:3, :3] = Rotation.from_quat(quaternion).as_matrix()
             T_WC[:3, 3] = position
             poses.append(T_WC)
+
+            depth_fname = "{}.npy".format(str(int(line[1])).zfill(5))
+            depth_fname = "{}/depth_{}/{}".format(self.path, self.split, depth_fname)
+            depth_info = torch.from_numpy(np.load(depth_fname)).float()
+            confi_fname = "{}.npy".format(str(int(line[1])).zfill(5))
+            confi_fname = "{}/confidence_{}/{}".format(self.path, self.split, confi_fname)
+            confi_info = torch.from_numpy(np.load(confi_fname))
+            depth.append(depth_info)
+            confidence.append(confi_info)
+
         poses = torch.from_numpy(np.array(poses)).float()
         self.list = poses
         self.gt_pose = poses
         self.opti_pose = poses
+
+        self.depth = torch.stack([torch.tensor(f, dtype=torch.float32) for f in depth])
+        self.confidence = torch.stack([torch.tensor(f) for f in confidence])
+
 
         # if subset and split != 'test': self.list = self.list[:subset] #train,val
         # preload dataset
         if opt.data.preload:
             self.images = self.preload_threading(opt,self.get_image)
             self.cameras = self.preload_threading(opt,self.get_camera,data_str="cameras")
-            self.depth = self.preload_threading(opt, self.get_depth,data_str="depth imgs")
+            self.depth = self.preload_threading(opt, self.get_depth,data_str="depth")
             self.confidence = self.preload_threading(opt, self.get_confidence, data_str="confidence")
 
 
@@ -82,6 +97,18 @@ class Dataset(base.Dataset):
         # pre-iterate through all samples and group together
         self.all = torch.utils.data._utils.collate.default_collate([s for s in self])
 
+    def get_all_depth(self,opt):
+        depth = torch.stack([torch.tensor(f ,dtype=torch.float32) for f in self.depth])
+        confidence = torch.stack([torch.tensor(f, dtype=torch.float32) for f in self.confidence])
+        return depth,confidence
+
+    #get_all_gt_camera_poses
+    def get_all_gt_depth(self,opt): # optitrack pose load
+        depth = torch.stack([torch.tensor(f, dtype=torch.float32) for f in self.depth])
+        # confidence = torch.stack([torch.tensor(f, dtype=torch.float32) for f in self.confidence])
+        return depth #, confidence
+
+
     def get_all_camera_poses(self,opt):
         pose_raw_all = [torch.tensor(f ,dtype=torch.float32) for f in self.list] # """list : campose 의미"""
         pose_canon_all = torch.stack([self.parse_raw_camera(opt, p) for p in pose_raw_all], dim=0)
@@ -105,10 +132,10 @@ class Dataset(base.Dataset):
 
         image = self.images[idx] if opt.data.preload else self.get_image(opt,idx)
         image = self.preprocess_image(opt,image,aug=aug)
-        depth = self.images[idx] if opt.data.preload else self.get_depth(opt,idx)
-        depth = self.preprocess_image(opt,depth,aug=aug)
-        confidence = self.images[idx] if opt.data.preload else self.get_confidence(opt,idx)
-        confidence = self.preprocess_image(opt,confidence,aug=aug)
+
+        depth = self.depth[idx] if opt.data.preload else self.get_depth(opt,idx)
+        confidence = self.confidence[idx] if opt.data.preload else self.get_confidence(opt,idx)
+
 
         intr,pose = self.cameras[idx] if opt.data.preload else self.get_camera(opt,idx) #(3,4)
         intr,pose = self.preprocess_camera(opt,intr,pose,aug=aug)
@@ -127,19 +154,26 @@ class Dataset(base.Dataset):
         image = PIL.Image.fromarray(imageio.imread(image_fname)) # directly using PIL.Image.open() leads to weird corruption....
         return image
 
-    def get_depth(self,opt,idx):
+    # def get_depth(self,opt,idx):
+    #     depth_fname = "{}.npy".format(str(int(self.frames[idx][1])).zfill(5))
+    #     depth_fname = "{}/depth_{}/{}".format(self.path,self.split,depth_fname)
+    #     depth = torch.from_numpy(np.load(depth_fname)).float()
+    #     return depth
+    #
+    #
+    # def get_confidence(self,opt,idx):
+    #     confi_fname = "{}.npy".format(str(int(self.frames[idx][1])).zfill(5))
+    #     confi_fname = "{}/confidence_{}/{}".format(self.path,self.split,confi_fname)
+    #     confidence = torch.from_numpy(np.load(confi_fname))
+    #     return confidence
 
-        depth_fname = "{}.npy".format(str(int(self.frames[idx][1])).zfill(5))
-        depth_fname = "{}/depth_{}/{}".format(self.path,self.split,depth_fname)
-        depth = np.load(depth_fname)#np.array(Image.open(depth_fname))
-        # image = PIL.Image.fromarray(imageio.imread(image_fname)) # directly using PIL.Image.open() leads to weird corruption....
+    def get_depth(self,opt,idx):
+        depth = self.depth[idx]
         return depth
 
 
     def get_confidence(self,opt,idx):
-        confi_fname = "{}.npy".format(str(int(self.frames[idx][1])).zfill(5))
-        confi_fname = "{}/confidence_{}/{}".format(self.path,self.split,confi_fname)
-        confidence = np.load(confi_fname)#np.array(Image.open(image_fname))#PIL.Image.fromarray(imageio.imread(image_fname)) # directly using PIL.Image.open() leads to weird corruption....
+        confidence = self.confidence[idx]
         return confidence
 
     def get_camera(self,opt,idx):

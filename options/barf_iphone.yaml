@@ -29,3 +29,4 @@ visdom:                                                     # Visdom options
 
 depth:
     use_depth: false
+    use_depth_loss : true
