@@ -140,7 +140,7 @@ def restore_checkpoint(opt,model,load_name=None,resume=False):
     else: ep,it = None,None
     return ep,it
 
-def save_checkpoint(opt,model,ep,it,latest=False,children=None): #TODO ckpt
+def save_checkpoint(opt,model,ep,it,latest=False,children=None):
     os.makedirs("{0}/model".format(opt.output_path),exist_ok=True)  # it는 self.it
     if children is not None:
         graph_state_dict = { k: v for k,v in model.graph.state_dict().items() if k.startswith(children) }

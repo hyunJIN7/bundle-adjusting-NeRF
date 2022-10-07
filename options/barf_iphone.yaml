@@ -3,7 +3,7 @@ _parent_: options/nerf_blender.yaml
 data:                                                       # data options
     dataset: iphone                                         # dataset name
     scene: IMG_0239                                         # scene name
-    image_size: [480,640]                                   # input image sizes [height,width]
+    image_size: [192,256]                                    # input image sizes [height,width]
     num_workers: 4                                          # number of parallel workers for data loading
     preload: true                                           # preload the entire dataset into the memory
     val_ratio: 0.1                                          # ratio of sequence split for validation
@@ -26,3 +26,6 @@ optim:                                                      # optimization optio
 
 visdom:                                                     # Visdom options
     cam_depth: 0.5                                          # size of visualized cameras
+
+depth:
+    use_depth: false

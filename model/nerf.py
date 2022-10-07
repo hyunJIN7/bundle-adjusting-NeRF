@@ -174,7 +174,6 @@ class Model(base.Model):
             # print('rgb map min ',np.array(rgb_map.cpu()).min())
             # print('rgb map max ',np.array(rgb_map.cpu()).max())
 
-
             invdepth_map = invdepth.view(-1,opt.H,opt.W,1).permute(0,3,1,2) # [B,1,H,W]
             psnr = -10*self.graph.MSE_loss(rgb_map,var.image).log10().item()
             ssim = pytorch_ssim.ssim(rgb_map,var.image).item()
@@ -453,7 +452,7 @@ class Graph(base.Graph):
     def compute_loss(self,opt,var,mode=None):
         loss = edict()
         batch_size = len(var.idx)
-        image = var.image.view(batch_size,3,opt.H*opt.W).permute(0,2,1)
+        image = var.image.view(batch_size,3,opt.H*opt.W).permute(0,2,1) # GT?..
         if opt.nerf.rand_rays and mode in ["train","test-optim"]:
             image = image[:,var.ray_idx]
         # compute image losses
@@ -464,12 +463,13 @@ class Graph(base.Graph):
             loss.render_fine = self.MSE_loss(var.rgb_fine,image)
 
         #TODO : add depth
-        # if opt.depth.depth_loss_weight > 0 :
-        #     depth = var.depth.view(batch_size,3,opt.H*opt.W).permute(0,2,1)
-        #     if opt.nerf.rand_rays and mode in ["train","test-optim"]:
-                # depth = depth[:,var.ray_idx]
-        #     depth_loss = self.compute_depth_loss(depth, extras['z_vals'], extras['weights'], target_d, target_vd)
-        #     loss = loss + opt.depth.depth_loss_weight * depth_loss
+        # if opt.depth.use_depth :
+            # if opt.depth.depth_loss_weight > 0 :
+            #     depth = var.depth.view(batch_size,3,opt.H*opt.W).permute(0,2,1)
+            #     if opt.nerf.rand_rays and mode in ["train","test-optim"]:
+                    # depth = depth[:,var.ray_idx]
+            #     depth_loss = self.compute_depth_loss(depth, extras['z_vals'], extras['weights'], target_d, target_vd)
+            #     loss = loss + opt.depth.depth_loss_weight * depth_loss
         return loss
 
     def get_pose(self,opt,var,mode=None):
@@ -518,10 +518,23 @@ class Graph(base.Graph):
 
     def sample_depth(self,opt,batch_size,num_rays=None):
         depth_min,depth_max = opt.nerf.depth.range
+        if opt.depth.use_depth :
+            print()
+        # print('=====nerf.py sample_depth near/far = ',depth_min,'/',depth_max) #TODO : erase
+
+        #         if opt.data.dataset in ["blender"] :
+        #             pose_GT = self.train_data.get_all_camera_poses(opt).to(opt.device) --> load dpeht,confidence
+        # image = var.image.view(batch_size,3,opt.H*opt.W).permute(0,2,1) # GT?.. dim change
+        # print('=====nerf.py sample_depth self dpeth  = ', self.depth)
+        # print('=====nerf.py sample_depth self confidence = ', self.confidence )
+        # print('=====nerf.py sample_depth self confidence = ', self.confidence)
         num_rays = num_rays or opt.H*opt.W
         rand_samples = torch.rand(batch_size,num_rays,opt.nerf.sample_intvs,1,device=opt.device) if opt.nerf.sample_stratified else 0.5
         rand_samples += torch.arange(opt.nerf.sample_intvs,device=opt.device)[None,None,:,None].float() # [B,HW,N,1]
         depth_samples = rand_samples/opt.nerf.sample_intvs*(depth_max-depth_min)+depth_min # [B,HW,N,1]
+        #opt.nerf.sample_intvs=128
+        # print('=====nerf.py sample_depth depth_samples : ', depth_samples)
+        # print('=====nerf.py sample_depth depth_samples.shape : ', depth_samples.shape)
         depth_samples = dict(
             metric=depth_samples,
             inverse=1/(depth_samples+1e-8),

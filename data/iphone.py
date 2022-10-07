@@ -13,6 +13,9 @@ import pickle
 from . import base
 import camera
 from util import log,debug
+from scipy.spatial.transform import Rotation
+import cv2
+from PIL import Image
 
 class Dataset(base.Dataset):
 
@@ -21,24 +24,33 @@ class Dataset(base.Dataset):
         super().__init__(opt,split)
         self.root = opt.data.root or "data/iphone"
         self.path = "{}/{}".format(self.root,opt.data.scene)
-        self.path_image = "{}/iphone_train_val_images".format(self.path) if split != "test" else "{}/test".format(self.path)
+
+        self.path_image = "{}/rgb_train_val".format(self.path) if split != "test" else "{}/rgb_test".format(self.path)
         self.list = sorted(os.listdir(self.path_image), key=lambda f: int(f.split(".")[0]))  #이미지
-        pose_fname = "{}/transforms_iphone.txt".format(self.path) if split != "test" else "{}/transforms_{}.txt".format(self.path, split)
-        pose_file = os.path.join('./', pose_fname)
-        assert os.path.isfile(pose_file), "pose info:{} not found".format(pose_file)
-        with open(pose_file, "r") as f:  # frame.txt 읽어서
-            cam_frame_lines = f.readlines()
-        cam_pose = []  # r1x y z tx r2x y z ty r3x y z tz
-        self.frames = []  # timestamp imagenum r1x y z tx r2x y z ty r3x y z tz
-        for line in cam_frame_lines:
-            line_data_list = line.split(' ')
-            if len(line_data_list) == 0:
-                continue
-            self.frames.append(line_data_list)
-            pose_raw = np.reshape(line_data_list[2:], (3, 4))
-            cam_pose.append(pose_raw)
-        cam_pose = np.array(cam_pose, dtype=float)
-        self.cam_pose = cam_pose
+
+        intrin_file = os.path.join(self.path, 'camera_matrix.csv')
+        assert os.path.isfile(intrin_file), "camera info:{} not found".format(intrin_file)
+        intrinsics = np.loadtxt(intrin_file, delimiter=',')
+        intrinsics = torch.from_numpy(np.array(intrinsics)).float()
+        intrinsics[1,:] = intrinsics[1,:] / (1920/self.raw_H)
+        intrinsics[2,:] = intrinsics[2,:] / (1920/self.raw_W)
+        self.intr = intrinsics
+
+        pose_path = "{}/odometry_train.csv".format(self.path) if split != "test" else "{}/odometry_{}.csv".format(self.path, split)
+        # pose_path = os.path.join('./', pose_path)
+        assert os.path.isfile(pose_path), "pose info:{} not found".format(pose_path)
+        odometry = np.loadtxt(pose_path, delimiter=',')#, skiprows=1
+        self.frames = odometry
+        poses = []
+        for line in odometry: # timestamp, frame(float ex 1.0), x, y, z, qx, qy, qz, qw
+            position = line[2:5]
+            quaternion = line[5:]
+            T_WC = np.eye(4)
+            T_WC[:3, :3] = Rotation.from_quat(quaternion).as_matrix()
+            T_WC[:3, 3] = position
+            poses.append(T_WC)
+        poses = torch.from_numpy(np.array(poses)).float()
+        self.cam_pose = poses
 
         if split != "test" : #train,val
             # manually split train/val subsets
@@ -124,30 +136,7 @@ class Dataset(base.Dataset):
         return image
 
     def get_camera(self,opt,idx):
-        #Load camera intrinsics  # frane.txt -> camera intrinsics
-        intrin_file = os.path.join(os.path.abspath('./'), self.path,'Frames.txt')
-        assert os.path.isfile(intrin_file), "camera info:{} not found".format(intrin_file)
-        with open(intrin_file, "r") as f:  # frame.txt
-            cam_intrinsic_lines = f.readlines()
-        cam_intrinsics = []
-        line_data_list = cam_intrinsic_lines[idx].split(',')
-        cam_intrinsics.append([float(i) for i in line_data_list])
-        # self.focal = self.raw_W*4.2/(12.8/2.55)
-        # intr = torch.tensor([[self.focal,0,self.raw_W/2],
-        #                      [0,self.focal,self.raw_H/2],
-        #                      [0,0,1]]).float()
-            # frame.txt -> cam_instrinsic
-        intr = torch.tensor([
-                [cam_intrinsics[0][2], 0, cam_intrinsics[0][4]],
-                [0, cam_intrinsics[0][3], cam_intrinsics[0][5]],
-                [0, 0, 1]
-            ]).float()
-        # origin video's origin_size(1920,1440) -> extract frame (640,480)
-        ori_size = (1920, 1440)
-        size = (640, 480)
-        intr[0,:] /= (ori_size[0] / size[0])
-        intr[1, :] /= (ori_size[1] / size[1])  #resize 전 크기가 orgin_size 이기 때문에
-
+        intr = self.intr
         if self.split == 'test':
             pose_raw = torch.tensor(self.cam_pose[idx],dtype=torch.float32)
             pose = self.parse_raw_camera(opt, pose_raw)

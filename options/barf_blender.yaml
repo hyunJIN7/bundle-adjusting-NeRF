@@ -17,3 +17,5 @@ optim:                                                      # optimization optio
 
 visdom:                                                     # Visdom options
     cam_depth: 0.5                                          # size of visualized cameras
+depth:
+    use_depth: false

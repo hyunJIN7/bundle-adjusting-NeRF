@@ -131,8 +131,6 @@ class Model(nerf.Model):
     def prealign_cameras(self,opt,pose,pose_GT):
         # compute 3D similarity transform via Procrustes analysis
         center = torch.zeros(1,1,3,device=opt.device)
-        # print("!!!!!!!  prealign  center ", center.shape)
-        # print("!!!!!!!  prealign  pose_GT ", pose_GT.shape)
         center_pred = camera.cam2world(center,pose)[:,0] # [N,3]
         center_GT = camera.cam2world(center,pose_GT)[:,0] # [N,3]
         try:

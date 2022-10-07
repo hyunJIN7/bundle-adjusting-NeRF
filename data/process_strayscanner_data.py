@@ -18,7 +18,7 @@ DEPTH_WIDTH = 256
 DEPTH_HEIGHT = 192
 MAX_DEPTH = 20.0
 
-#conda activate StrayVisualizer-main
+#  conda activate StrayVisualizer-main
 # python data/process_strayscanner_data.py --basedir ./data/strayscanner/computer2
 # python data/process_strayscanner_data.py --basedir ./data/strayscanner/dinosaur
 def config_parser():

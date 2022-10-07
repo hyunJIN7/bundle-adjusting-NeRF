@@ -282,10 +282,8 @@ def plot_save_poses(opt, fig, pose, pose_ref=None, path=None, ep=None):
     plt.title("epoch {}".format(ep))
     ax1 = fig.add_subplot(121, projection="3d")
     ax2 = fig.add_subplot(122, projection="3d")
-
-    setup_3D_plot(ax1, elev=-90, azim=-90, lim=edict(x=(-1, 1), y=(-1, 1), z=(-1, 1)))  # x=(-1,1),y=(-1,1),z=(-1,1)
-    setup_3D_plot(ax2, elev=0, azim=-90, lim=edict(x=(-1, 1), y=(-1, 1), z=(-1, 1)))
-
+    setup_3D_plot(ax1, elev=-90, azim=-90, lim=edict(x=(-0.6, 0.6), y=(-0.6, 0.6), z=(-0.6, 0.6)))  # x=(-1,1),y=(-1,1),z=(-1,1)
+    setup_3D_plot(ax2, elev=0, azim=-90, lim=edict(x=(-0.6, 0.6), y=(-0.6, 0.6), z=(-0.6, 0.6)))
     ax1.set_title("forward-facing view", pad=0)
     ax2.set_title("top-down view", pad=0)
     plt.subplots_adjust(left=0, right=1, bottom=0, top=0.95, wspace=0, hspace=0)
@@ -293,20 +291,36 @@ def plot_save_poses(opt, fig, pose, pose_ref=None, path=None, ep=None):
     # plot the cameras
     N = len(cam)
     color = plt.get_cmap("gist_rainbow")
-
     for i in range(N):
         if pose_ref is not None:
-            ax1.plot(cam_ref[i, :, 0], cam_ref[i, :, 1], cam_ref[i, :, 2], color=(0.3, 0.3, 0.3), linewidth=1)
-            ax2.plot(cam_ref[i, :, 0], cam_ref[i, :, 1], cam_ref[i, :, 2], color=(0.3, 0.3, 0.3), linewidth=1)
-            ax1.scatter(cam_ref[i, 5, 0], cam_ref[i, 5, 1], cam_ref[i, 5, 2], color=(0.3, 0.3, 0.3), s=40)
-            ax2.scatter(cam_ref[i, 5, 0], cam_ref[i, 5, 1], cam_ref[i, 5, 2], color=(0.3, 0.3, 0.3), s=40)
+            ax1.plot(cam_ref[i,:,0],cam_ref[i,:,1],cam_ref[i,:,2],color=(0.3,0.3,0.3),linewidth=1)
+            ax2.plot(cam_ref[i,:,0],cam_ref[i,:,1],cam_ref[i,:,2],color=(0.3,0.3,0.3),linewidth=1)
+            ax1.scatter(cam_ref[i,5,0],cam_ref[i,5,1],cam_ref[i,5,2],color=(0.3,0.3,0.3),s=40)
+            ax2.scatter(cam_ref[i,5,0],cam_ref[i,5,1],cam_ref[i,5,2],color=(0.3,0.3,0.3),s=40)
+        c = np.array(color(float(i)/N))*0.8
+        ax1.plot(cam[i,:,0],cam[i,:,1],cam[i,:,2],color=c)
+        ax2.plot(cam[i,:,0],cam[i,:,1],cam[i,:,2],color=c)
+        ax1.scatter(cam[i,5,0],cam[i,5,1],cam[i,5,2],color=c,s=40)
+        ax2.scatter(cam[i,5,0],cam[i,5,1],cam[i,5,2],color=c,s=40)
 
-        # c = np.array(color(float(i)/N))*0.8
-        c = (1, 0, 0)
-        ax1.plot(cam[i, :, 0], cam[i, :, 1], cam[i, :, 2], color=c)
-        ax2.plot(cam[i, :, 0], cam[i, :, 1], cam[i, :, 2], color=c)
-        ax1.scatter(cam[i, 5, 0], cam[i, 5, 1], cam[i, 5, 2], color=c, s=40)
-        ax2.scatter(cam[i, 5, 0], cam[i, 5, 1], cam[i, 5, 2], color=c, s=40)
+    #red and black
+    # for i in range(N):
+    #     if pose_ref is not None:
+    #         ax1.plot(cam_ref[i, :, 0], cam_ref[i, :, 1], cam_ref[i, :, 2], color=(0.3, 0.3, 0.3), linewidth=1)
+    #         ax2.plot(cam_ref[i, :, 0], cam_ref[i, :, 1], cam_ref[i, :, 2], color=(0.3, 0.3, 0.3), linewidth=1)
+    #         ax1.scatter(cam_ref[i, 5, 0], cam_ref[i, 5, 1], cam_ref[i, 5, 2], color=(0.3, 0.3, 0.3), s=40)
+    #         ax2.scatter(cam_ref[i, 5, 0], cam_ref[i, 5, 1], cam_ref[i, 5, 2], color=(0.3, 0.3, 0.3), s=40)
+    #
+    #     # c = np.array(color(float(i)/N))*0.8
+    #     c = (1, 0, 0)
+    #     ax1.plot(cam[i, :, 0], cam[i, :, 1], cam[i, :, 2], color=c)
+    #     ax2.plot(cam[i, :, 0], cam[i, :, 1], cam[i, :, 2], color=c)
+    #     ax1.scatter(cam[i, 5, 0], cam[i, 5, 1], cam[i, 5, 2], color=c, s=40)
+    #     ax2.scatter(cam[i, 5, 0], cam[i, 5, 1], cam[i, 5, 2], color=c, s=40)
+
+
+
+
     png_fname = "{}/{}.png".format(path, ep)
     plt.savefig(png_fname, dpi=75)
     # clean up

@@ -26,3 +26,5 @@ visdom:                                                     # Visdom options
 dpeth :
     depth_loss_weight : 0.04                                # 'weight of the depth loss, values <=0 do not apply depth loss'
     invalidate_large_std_threshold : 1.                     # 'invalidate completed depth values with standard deviation greater than threshold in m, thresholds <=0 deactivate invalidation'
+    use_depth: true
+
