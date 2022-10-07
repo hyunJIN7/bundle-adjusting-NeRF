@@ -37,8 +37,6 @@ class Dataset(base.Dataset):
         odometry = np.loadtxt(pose_path, delimiter=',')#, skiprows=1
         self.frames = odometry
         poses = []
-        depth = []
-        confidence = []
         for line in odometry: # timestamp, frame(float ex 1.0), x, y, z, qx, qy, qz, qw
             position = line[2:5]
             quaternion = line[5:]
@@ -46,24 +44,10 @@ class Dataset(base.Dataset):
             T_WC[:3, :3] = Rotation.from_quat(quaternion).as_matrix()
             T_WC[:3, 3] = position
             poses.append(T_WC)
-
-            depth_fname = "{}.npy".format(str(int(line[1])).zfill(5))
-            depth_fname = "{}/depth_{}/{}".format(self.path, self.split, depth_fname)
-            depth_info = torch.from_numpy(np.load(depth_fname)).float()
-            confi_fname = "{}.npy".format(str(int(line[1])).zfill(5))
-            confi_fname = "{}/confidence_{}/{}".format(self.path, self.split, confi_fname)
-            confi_info = torch.from_numpy(np.load(confi_fname))
-            depth.append(depth_info)
-            confidence.append(confi_info)
-
         poses = torch.from_numpy(np.array(poses)).float()
         self.list = poses
         self.gt_pose = poses
         self.opti_pose = poses
-
-        self.depth = torch.stack([torch.tensor(f, dtype=torch.float32) for f in depth])
-        self.confidence = torch.stack([torch.tensor(f) for f in confidence])
-
 
         # if subset and split != 'test': self.list = self.list[:subset] #train,val
         # preload dataset
@@ -105,8 +89,7 @@ class Dataset(base.Dataset):
     #get_all_gt_camera_poses
     def get_all_gt_depth(self,opt): # optitrack pose load
         depth = torch.stack([torch.tensor(f, dtype=torch.float32) for f in self.depth])
-        # confidence = torch.stack([torch.tensor(f, dtype=torch.float32) for f in self.confidence])
-        return depth #, confidence
+        return depth
 
 
     def get_all_camera_poses(self,opt):
@@ -151,29 +134,20 @@ class Dataset(base.Dataset):
     def get_image(self,opt,idx):
         image_fname = "{}.png".format(str(int(self.frames[idx][1])).zfill(5))
         image_fname = "{}/rgb_{}/{}".format(self.path,self.split,image_fname)
-        image = PIL.Image.fromarray(imageio.imread(image_fname)) # directly using PIL.Image.open() leads to weird corruption....
+        image = PIL.Image.fromarray(imageio.imread(image_fname))
         return image
 
-    # def get_depth(self,opt,idx):
-    #     depth_fname = "{}.npy".format(str(int(self.frames[idx][1])).zfill(5))
-    #     depth_fname = "{}/depth_{}/{}".format(self.path,self.split,depth_fname)
-    #     depth = torch.from_numpy(np.load(depth_fname)).float()
-    #     return depth
-    #
-    #
-    # def get_confidence(self,opt,idx):
-    #     confi_fname = "{}.npy".format(str(int(self.frames[idx][1])).zfill(5))
-    #     confi_fname = "{}/confidence_{}/{}".format(self.path,self.split,confi_fname)
-    #     confidence = torch.from_numpy(np.load(confi_fname))
-    #     return confidence
-
     def get_depth(self,opt,idx):
-        depth = self.depth[idx]
+        depth_fname = "{}.npy".format(str(int(self.frames[idx][1])).zfill(5))
+        depth_fname = "{}/depth_{}/{}".format(self.path,self.split,depth_fname)
+        depth = torch.from_numpy(np.load(depth_fname)).float()
         return depth
 
 
     def get_confidence(self,opt,idx):
-        confidence = self.confidence[idx]
+        confi_fname = "{}.npy".format(str(int(self.frames[idx][1])).zfill(5))
+        confi_fname = "{}/confidence_{}/{}".format(self.path,self.split,confi_fname)
+        confidence = torch.from_numpy(np.load(confi_fname))
         return confidence
 
     def get_camera(self,opt,idx):
