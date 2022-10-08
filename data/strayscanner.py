@@ -80,6 +80,8 @@ class Dataset(base.Dataset):
         assert(not opt.data.augment)
         # pre-iterate through all samples and group together
         self.all = torch.utils.data._utils.collate.default_collate([s for s in self])
+        # for s in self:
+        #     print()
 
     def get_all_depth(self,opt):
         depth = torch.stack([torch.tensor(f ,dtype=torch.float32) for f in self.depth])

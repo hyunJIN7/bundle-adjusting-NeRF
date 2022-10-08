@@ -21,13 +21,14 @@ MAX_DEPTH = 20.0
 #  conda activate StrayVisualizer-main
 # python data/process_strayscanner_data.py --basedir ./data/strayscanner/computer2
 # python data/process_strayscanner_data.py --basedir ./data/strayscanner/dinosaur
+# python data/process_strayscanner_data.py --basedir ./data/strayscanner/xyz
 def config_parser():
     import configargparse
     parser = configargparse.ArgumentParser()
 
     parser.add_argument("--basedir", type=str, default='./data/strayscanner/computer',
                         help='input data directory')
-    parser.add_argument("--num_train", type=int, default=100,
+    parser.add_argument("--num_train", type=int, default=140,
                         help='number of train data')
     return parser
 

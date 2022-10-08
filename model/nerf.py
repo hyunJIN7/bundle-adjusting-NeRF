@@ -439,15 +439,20 @@ class Graph(base.Graph):
         # print("@@@@@@@@@@@@@@ nerf forward var.idx ", var.idx)
         # print("@@@@@@@@@@@@@@ nerf forward batch_size ", batch_size)
 
+        #Here!!!!!!
+        depth, confidence = None,None
+        if opt.depth.use_depth :
+            depth,confidence = self.get_depth(opt,var,mode=mode)
+
         # render images
         if opt.nerf.rand_rays and mode in ["train","test-optim"]:
             # sample random rays for optimization
             var.ray_idx = torch.randperm(opt.H*opt.W,device=opt.device)[:opt.nerf.rand_rays//batch_size]
-            ret = self.render(opt,pose,intr=var.intr,ray_idx=var.ray_idx,mode=mode,idx=var.idx) # [B,N,3],[B,N,1]
+            ret = self.render(opt,pose,intr=var.intr,ray_idx=var.ray_idx,mode=mode,idx=var.idx,depth=depth,confidence=confidence) # [B,N,3],[B,N,1]
         else:
             # render full image (process in slices)
-            ret = self.render_by_slices(opt,pose,intr=var.intr,mode=mode,idx=var.idx) if opt.nerf.rand_rays else \
-                  self.render(opt,pose,intr=var.intr,mode=mode,idx=var.idx) # [B,HW,3],[B,HW,1]
+            ret = self.render_by_slices(opt,pose,intr=var.intr,mode=mode,idx=var.idx,depth=depth,confidence=confidence) if opt.nerf.rand_rays else \
+                  self.render(opt,pose,intr=var.intr,mode=mode,idx=var.idx,depth=depth,confidence=confidence) # [B,HW,3],[B,HW,1]
         var.update(ret)
         return var
 
@@ -476,7 +481,10 @@ class Graph(base.Graph):
     def get_pose(self,opt,var,mode=None):
         return var.pose
 
-    def render(self,opt,pose,intr=None,ray_idx=None,mode=None,idx=None):
+    def get_depth(self,opt,var,mode=None):
+        return var.depth , var.confidence
+
+    def render(self,opt,pose,intr=None,ray_idx=None,mode=None,idx=None,depth=None,confidence=None):
         batch_size = len(pose)
         center,ray = camera.get_center_and_ray(opt,pose,intr=intr) # [B,HW,3]
         while ray.isnan().any(): # TODO: weird bug, ray becomes NaN arbitrarily if batch_size>1, not deterministic reproducible
@@ -488,7 +496,7 @@ class Graph(base.Graph):
             # convert center/ray representations to NDC
             center,ray = camera.convert_NDC(opt,center,ray,intr=intr)
         # render with main MLP
-        depth_samples = self.sample_depth(opt,batch_size,num_rays=ray.shape[1], idx=idx,ray_idx=ray_idx) # [B,HW,N,1] , idx : batch, ray_idx : ray num
+        depth_samples = self.sample_depth(opt,batch_size,num_rays=ray.shape[1], idx=idx,ray_idx=ray_idx,depth=depth,confidence=confidence) # [B,HW,N,1] , idx : batch, ray_idx : ray num
         rgb_samples,density_samples = self.nerf.forward_samples(opt,center,ray,depth_samples,mode=mode)
         rgb,depth,opacity,prob = self.nerf.composite(opt,ray,rgb_samples,density_samples,depth_samples)
         ret = edict(rgb=rgb,depth=depth,opacity=opacity) # [B,HW,K]
@@ -504,14 +512,14 @@ class Graph(base.Graph):
             ret.update(rgb_fine=rgb_fine,depth_fine=depth_fine,opacity_fine=opacity_fine) # [B,HW,K]
         return ret
 
-    def render_by_slices(self,opt,pose,intr=None,mode=None,idx=None):
+    def render_by_slices(self,opt,pose,intr=None,mode=None,idx=None,depth=None,confidence=None):
         ret_all = edict(rgb=[],depth=[],opacity=[])
         if opt.nerf.fine_sampling:
             ret_all.update(rgb_fine=[],depth_fine=[],opacity_fine=[])
         # render the image by slices for memory considerations
         for c in range(0,opt.H*opt.W,opt.nerf.rand_rays):
             ray_idx = torch.arange(c,min(c+opt.nerf.rand_rays,opt.H*opt.W),device=opt.device)
-            ret = self.render(opt,pose,intr=intr,ray_idx=ray_idx,mode=mode,idx=None) # [B,R,3],[B,R,1]
+            ret = self.render(opt,pose,intr=intr,ray_idx=ray_idx,mode=mode,idx=idx,depth=depth,confidence=confidence) # [B,R,3],[B,R,1]
             for k in ret: ret_all[k].append(ret[k])
         # group all slices of images
         for k in ret_all: ret_all[k] = torch.cat(ret_all[k],dim=1)
@@ -522,15 +530,12 @@ class Graph(base.Graph):
         depth_max = depth[:, 0] + 3. * depth[:, 1]
         return torch.stack((depth[:, 0], depth_min, depth_max), -1)
 
-    def sample_depth(self,opt,batch_size,num_rays=None,idx=None,ray_idx=None,depth=None,confidenc=None):
+    def sample_depth(self,opt,batch_size,num_rays=None,idx=None,ray_idx=None,depth=None,confidence=None):
         depth_min,depth_max = opt.nerf.depth.range
 
-        if opt.depth.use_depth :
-            data = importlib.import_module("data.{}".format(opt.data.dataset))
 
-
-
-            depth,confidence = self.train_data.get_all_depth(opt).to(opt.device) # [N,H,W]
+        # if opt.depth.use_depth :
+        if depth is not None and confidence is not None: # [N,H,W]
             depth = depth[idx,:,:].view(batch_size,-1)
             confidence = confidence[idx,:,:].view(batch_size,-1)
             depth = depth[ray_idx]
@@ -541,9 +546,9 @@ class Graph(base.Graph):
         rand_samples = torch.rand(batch_size,num_rays,opt.nerf.sample_intvs,1,device=opt.device) if opt.nerf.sample_stratified else 0.5
         rand_samples += torch.arange(opt.nerf.sample_intvs,device=opt.device)[None,None,:,None].float() # [B,HW,N,1]
 
-        print("!!!!! sample_depth num_rays : ",num_rays)
-        print("!!!!! sample_depth rand_samples : ",rand_samples)
-        print("!!!!! sample_depth rand_samples.shape : ",rand_samples.shape)
+        # print("!!!!! sample_depth num_rays : ",num_rays)
+        # print("!!!!! sample_depth rand_samples : ",rand_samples)
+        # print("!!!!! sample_depth rand_samples.shape : ",rand_samples.shape)
 
         depth_samples = rand_samples/opt.nerf.sample_intvs *(depth_max-depth_min)+depth_min # [B,HW,N,1]
         #opt.nerf.sample_intvs=128
