@@ -472,18 +472,19 @@ class Graph(base.Graph):
             assert(opt.nerf.fine_sampling)
             loss.render_fine = self.MSE_loss(var.rgb_fine,image)
 
-        if opt.depth.use_depth_loss and opt.depth.depth_loss_weight > 0:
-            depth_hat = var.depth.view(batch_size , opt.H*opt.W)  #(batch , H*W, 1)
-            depth, confidence = self.get_depth(opt,var,mode=mode) # [batch?,H,W]
-            depth, confidence = depth[var.idx,].view(batch_size,-1), confidence[var.idx,].view(batch_size,-1)  #[batch, H*W]
-            depth, confidence = depth.unsqueeze(-1), confidence.unsqueeze(-1) ##[batch, H*W,1]
-
-            if opt.nerf.rand_rays and mode in ["train","test-optim"]:
-                depth_hat = depth_hat[:,var.ray_idx]
-                depth = depth[:,var.ray_idx]
-                confidence = confidence[:,var.ray_idx]
+        # if opt.depth.use_depth_loss and opt.depth.depth_loss_weight > 0:
+        #     depth_hat = var.depth.view(batch_size , opt.H*opt.W)  #(batch , H*W, 1)
+        #     depth, confidence = self.get_depth(opt,var,mode=mode) # [batch?,H,W]
+        #     depth, confidence = depth[var.idx,].view(batch_size,-1), confidence[var.idx,].view(batch_size,-1)  #[batch, H*W]
+        #     depth, confidence = depth.unsqueeze(-1), confidence.unsqueeze(-1) ##[batch, H*W,1]
+        #
+        #     if opt.nerf.rand_rays and mode in ["train","test-optim"]:
+        #         depth_hat = depth_hat[:,var.ray_idx]
+        #         depth = depth[:,var.ray_idx]
+        #         confidence = confidence[:,var.ray_idx]
             #get_3D_points_from_depth , get_center_and_ray
-            depth_loss = self.compute_depth_loss(depth, confidence, extras['z_vals'], extras['weights'], target_d, target_vd)
+            # depth vs depth_hat
+            # depth_loss = self.compute_depth_loss(depth, confidence, extras['z_vals'], extras['weights'], target_d)
             # loss = loss + opt.depth.depth_loss_weight * depth_loss # fix!!!! loss.depth_render =
         return loss
 
@@ -557,7 +558,7 @@ class Graph(base.Graph):
         return near[...,0],far[...,0]  #[B,H*W]
 
     def sample_depth(self,opt,batch_size,num_rays=None,idx=None,ray_idx=None,depth=None,confidence=None):
-        # depth_min,depth_max = opt.nerf.depth.range
+        near,far = opt.nerf.depth.range
         # sample_intvs : sampling point num , idx : batch_num
         num_rays = num_rays or opt.H * opt.W
         rand_samples = torch.rand(batch_size,num_rays,opt.nerf.sample_intvs,1,device=opt.device) if opt.nerf.sample_stratified else 0.5
