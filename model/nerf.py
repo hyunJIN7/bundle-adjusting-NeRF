@@ -525,35 +525,55 @@ class Graph(base.Graph):
         for k in ret_all: ret_all[k] = torch.cat(ret_all[k],dim=1)
         return ret_all
 
-    def precompute_depth_sampling(depth,confidence):
-        depth_min = (depth[:, 0] - 3. * depth[:, 1])
-        depth_max = depth[:, 0] + 3. * depth[:, 1]
-        return torch.stack((depth[:, 0], depth_min, depth_max), -1)
+    def precompute_depth_sampling(self,opt,depth,confidence):
+        #TODO : 지금 기준은 confidence , 성능 구리면 depth 값 기준으로도 더 조건 추가 4.5 이상이면 해보고 별로면
+        depth_min, depth_max = opt.nerf.depth.range
+        # [B,H*W]
+        depth = depth[...,None]
+        confidence = confidence[..., None]
+        near = torch.ones_like(depth)
+        far = torch.ones_like(depth)
+
+        #condition 2
+        condi2 = confidence[..., 0] == 2
+        near[condi2]= torch.clamp(depth[condi2]-0.3 ,max=0)
+        far[condi2] = depth[condi2]+0.3
+
+        condi1 = confidence[..., 0] == 1
+        near[condi1] = torch.clamp(depth[condi1]-1 ,max=0)
+        far[condi1] = depth[condi1]+1
+
+        condi0 = confidence[..., 0] == 0
+        near[condi0]= torch.clamp(depth[condi0]-0.5,max=4.5)
+        far[condi0] = torch.clamp(depth[condi0]+0.5,min=depth_max)
+        return near[...,0],far[...,]  #[B,H*W]
 
     def sample_depth(self,opt,batch_size,num_rays=None,idx=None,ray_idx=None,depth=None,confidence=None):
         depth_min,depth_max = opt.nerf.depth.range
 
-
-        # if opt.depth.use_depth :
-        if depth is not None and confidence is not None: # [N,H,W]
-            depth = depth[idx,:,:].view(batch_size,-1)
-            confidence = confidence[idx,:,:].view(batch_size,-1)
-            depth = depth[ray_idx]
-            confidence = confidence[ray_idx]
-            print('############### depth shape : ', depth.shape)
-
-        num_rays = num_rays or opt.H*opt.W
+        # sample_intvs : sampling point num
+        num_rays = num_rays or opt.H * opt.W
         rand_samples = torch.rand(batch_size,num_rays,opt.nerf.sample_intvs,1,device=opt.device) if opt.nerf.sample_stratified else 0.5
-        rand_samples += torch.arange(opt.nerf.sample_intvs,device=opt.device)[None,None,:,None].float() # [B,HW,N,1]
+        rand_samples += torch.arange(opt.nerf.sample_intvs, device=opt.device)[None, None,:,None].float()  # [B,HW,N,1]
+        # (batch,num_rays,n,1)(1,1024,128,1)
 
-        # print("!!!!! sample_depth num_rays : ",num_rays)
-        # print("!!!!! sample_depth rand_samples : ",rand_samples)
-        # print("!!!!! sample_depth rand_samples.shape : ",rand_samples.shape)
+        #idx : batch_num
+        if depth is not None and confidence is not None: # [train_num,H,W]
+            depth = depth[idx,:,:].view(batch_size,-1) #[B,H*W]
+            confidence = confidence[idx,:,:].view(batch_size,-1) #[B,H*W]
+            near,far = self.precompute_depth_sampling(opt,depth, confidence)  # [B,H*W]
+            near, far = near[:,ray_idx], far[:,ray_idx]
+            near, far = near.unsqueeze(-1), far.unsqueeze(-1)
+            near, far = near.expand_as(rand_samples[...,0]), far.expand_as(rand_samples[...,0]) #[B,H*W,N]
+            # depth = depth[:,ray_idx]
+            # depth = depth.unsqueeze(-1)
+            # depth = depth.expand_as(rand_samples[...,0])
+            #[B,H*W,N]
 
-        depth_samples = rand_samples/opt.nerf.sample_intvs *(depth_max-depth_min)+depth_min # [B,HW,N,1]
-        #opt.nerf.sample_intvs=128
-        # print('=====nerf.py sample_depth depth_samples : ', depth_samples)
-        # print('=====nerf.py sample_depth depth_samples.shape : ', depth_samples.shape)
+            near, far = near.unsqueeze(-1), far.unsqueeze(-1)#[B,H*W,N,1]
+
+            # (batch,num_rays,n,1)(1,1024,128,1)
+        depth_samples = rand_samples/opt.nerf.sample_intvs *(depth_max-depth_min)+depth_min # [B,HW,N,1] [1,1024,128,1]
         depth_samples = dict(
             metric=depth_samples,
             inverse=1/(depth_samples+1e-8),

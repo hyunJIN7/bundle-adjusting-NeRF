@@ -32,13 +32,13 @@ def main():
         if opt.data.dataset in ["blender","llff","arkit","iphone","strayscanner"]:
             m.evaluate_full(opt)
 
-        # #novel_view synthesis
+        # # #novel_view synthesis
         m.restore_checkpoint(opt)
-        m.generate_videos_synthesis(opt) # novel_view
         m.generate_videos_synthesis_origin(opt) # origin novel_view synthesis code
+        m.generate_videos_synthesis(opt) # test pose novel_view
         """
-            novel_view : GT 포즈 범위에서 novel view 생성
             origin_novel_view : train 과정에서 optimize한 포즈 범위에서 novel_view 생성
+            novel_view : GT 포즈 범위에서 novel view 생성?? test pose novel view????
         """
 
 if __name__=="__main__":
