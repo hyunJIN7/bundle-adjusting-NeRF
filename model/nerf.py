@@ -463,6 +463,10 @@ class Graph(base.Graph):
         loss = edict()
         batch_size = len(var.idx)
         image = var.image.view(batch_size,3,opt.H*opt.W).permute(0,2,1) # (batch_size, opt.H*opt.W, 3) , GT?
+
+        rendering_weight = var.prob  # (batch, H*W, 128(sample point?),1)
+        z_val = var.depth_samples
+
         if opt.nerf.rand_rays and mode in ["train","test-optim"]:
             image = image[:,var.ray_idx]
         # compute image losses
@@ -472,20 +476,20 @@ class Graph(base.Graph):
             assert(opt.nerf.fine_sampling)
             loss.render_fine = self.MSE_loss(var.rgb_fine,image)
 
-        # if opt.depth.use_depth_loss and opt.depth.depth_loss_weight > 0:
-        #     depth_hat = var.depth.view(batch_size , opt.H*opt.W)  #(batch , H*W, 1)
-        #     depth, confidence = self.get_depth(opt,var,mode=mode) # [batch?,H,W]
-        #     depth, confidence = depth[var.idx,].view(batch_size,-1), confidence[var.idx,].view(batch_size,-1)  #[batch, H*W]
-        #     depth, confidence = depth.unsqueeze(-1), confidence.unsqueeze(-1) ##[batch, H*W,1]
-        #
-        #     if opt.nerf.rand_rays and mode in ["train","test-optim"]:
-        #         depth_hat = depth_hat[:,var.ray_idx]
-        #         depth = depth[:,var.ray_idx]
-        #         confidence = confidence[:,var.ray_idx]
-            #get_3D_points_from_depth , get_center_and_ray
+        if opt.depth.use_depth_loss and opt.loss_weight.depth > 0:
+            pred_depth = var.depth.view(batch_size , opt.H*opt.W)  #(batch , H*W, 1)
+            depth, confidence = self.get_depth(opt,var,mode=mode) # [batch?,H,W]
+            depth, confidence = depth[var.idx,].view(batch_size,-1), confidence[var.idx,].view(batch_size,-1)  #[batch, H*W]
+            depth, confidence = depth.unsqueeze(-1), confidence.unsqueeze(-1) ##[batch, H*W,1]
+
+
+            if opt.nerf.rand_rays and mode in ["train","test-optim"]: #TODO : this line ???
+                pred_depth = pred_depth[:,var.ray_idx]
+                depth = depth[:,var.ray_idx]  #gt
+                confidence = confidence[:,var.ray_idx]
+            # get_3D_points_from_depth , get_center_and_ray
             # depth vs depth_hat
-            # depth_loss = self.compute_depth_loss(depth, confidence, extras['z_vals'], extras['weights'], target_d)
-            # loss = loss + opt.depth.depth_loss_weight * depth_loss # fix!!!! loss.depth_render =
+            loss.depth = self.compute_depth_loss(pred_depth,z_val,rendering_weight ,confidence,  depth)
         return loss
 
     def get_pose(self,opt,var,mode=None):
@@ -509,7 +513,8 @@ class Graph(base.Graph):
         depth_samples = self.sample_depth(opt,batch_size,num_rays=ray.shape[1], idx=idx,ray_idx=ray_idx,depth=depth,confidence=confidence) # [B,HW,N,1] , idx : batch, ray_idx : ray num
         rgb_samples,density_samples = self.nerf.forward_samples(opt,center,ray,depth_samples,mode=mode)
         rgb,depth,opacity,prob = self.nerf.composite(opt,ray,rgb_samples,density_samples,depth_samples)
-        ret = edict(rgb=rgb,depth=depth,opacity=opacity) # [B,HW,K]
+        ret = edict(rgb=rgb,depth=depth,opacity=opacity,prob=prob,depth_samples=depth_samples) # [B,HW,K]
+
         # render with fine MLP from coarse MLP
         if opt.nerf.fine_sampling:
             with torch.no_grad():
@@ -518,14 +523,14 @@ class Graph(base.Graph):
                 depth_samples = torch.cat([depth_samples,depth_samples_fine],dim=2) # [B,HW,N+Nf,1]
                 depth_samples = depth_samples.sort(dim=2).values
             rgb_samples,density_samples = self.nerf_fine.forward_samples(opt,center,ray,depth_samples,mode=mode)
-            rgb_fine,depth_fine,opacity_fine,_ = self.nerf_fine.composite(opt,ray,rgb_samples,density_samples,depth_samples)
-            ret.update(rgb_fine=rgb_fine,depth_fine=depth_fine,opacity_fine=opacity_fine) # [B,HW,K]
+            rgb_fine,depth_fine,opacity_fine,prob_fine = self.nerf_fine.composite(opt,ray,rgb_samples,density_samples,depth_samples)
+            ret.update(rgb_fine=rgb_fine,depth_fine=depth_fine,opacity_fine=opacity_fine,prob=prob) # [B,HW,K]
         return ret
 
     def render_by_slices(self,opt,pose,intr=None,mode=None,idx=None,depth=None,confidence=None):
-        ret_all = edict(rgb=[],depth=[],opacity=[])
+        ret_all = edict(rgb=[],depth=[],opacity=[],prob=[],depth_samples=[])
         if opt.nerf.fine_sampling:
-            ret_all.update(rgb_fine=[],depth_fine=[],opacity_fine=[])
+            ret_all.update(rgb_fine=[],depth_fine=[],opacity_fine=[], prob_fine = [])
         # render the image by slices for memory considerations
         for c in range(0,opt.H*opt.W,opt.nerf.rand_rays):
             ray_idx = torch.arange(c,min(c+opt.nerf.rand_rays,opt.H*opt.W),device=opt.device)

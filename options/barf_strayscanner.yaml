@@ -24,6 +24,6 @@ optim:                                                      # optimization optio
 visdom:                                                     # Visdom options
     cam_depth: 0.5                                          # size of visualized cameras
 depth :
-    depth_loss_weight : 0.04                                # 'weight of the depth loss, values <=0 do not apply depth loss'
+#    depth_loss_weight : 0.04                                # 'weight of the depth loss, values <=0 do not apply depth loss'
     use_depth: true
     use_depth_loss : true
