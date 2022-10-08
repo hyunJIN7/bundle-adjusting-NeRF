@@ -207,11 +207,14 @@ class Graph(torch.nn.Module):
 
     #TODO : add depth
     def is_not_in_expected_distribution(self,depth_mean, depth_var, depth_measurement_mean, depth_measurement_std):
-        delta_greater_than_expected = ((depth_mean - depth_measurement_mean).abs() - depth_measurement_std) > 0.
-        var_greater_than_expected = depth_measurement_std.pow(2) < depth_var
+        delta_greater_than_expected = ((depth_mean - depth_measurement_mean).abs() - depth_measurement_std) > 0.  # P
+        var_greater_than_expected = depth_measurement_std.pow(2) < depth_var                # Q?
         return torch.logical_or(delta_greater_than_expected, var_greater_than_expected)
 
-    def compute_depth_loss(self,depth_map, z_vals, weights, target_depth):
+    def compute_depth_loss(self,depth_map, confidence,z_vals, weights, target_depth):
+        #depth_loss = self.compute_depth_loss(depth, extras['z_vals'], extras['weights'], target_d, target_vd)
+
+
         pred_mean = depth_map
         if pred_mean.shape[0] == 0:
             return torch.zeros((1,), device=depth_map.device, requires_grad=True)

@@ -454,12 +454,15 @@ class Graph(base.Graph):
             ret = self.render_by_slices(opt,pose,intr=var.intr,mode=mode,idx=var.idx,depth=depth,confidence=confidence) if opt.nerf.rand_rays else \
                   self.render(opt,pose,intr=var.intr,mode=mode,idx=var.idx,depth=depth,confidence=confidence) # [B,HW,3],[B,HW,1]
         var.update(ret)
+
+        depth = var.depth
+        # print("!!!!! depth shape :", depth.shape)
         return var
 
     def compute_loss(self,opt,var,mode=None):
         loss = edict()
         batch_size = len(var.idx)
-        image = var.image.view(batch_size,3,opt.H*opt.W).permute(0,2,1) # GT?..
+        image = var.image.view(batch_size,3,opt.H*opt.W).permute(0,2,1) # (batch_size, opt.H*opt.W, 3) , GT?
         if opt.nerf.rand_rays and mode in ["train","test-optim"]:
             image = image[:,var.ray_idx]
         # compute image losses
@@ -468,14 +471,20 @@ class Graph(base.Graph):
         if opt.loss_weight.render_fine is not None:
             assert(opt.nerf.fine_sampling)
             loss.render_fine = self.MSE_loss(var.rgb_fine,image)
-        #TODO : add depth
-        # if opt.depth.use_depth_loss :
-            # if opt.depth.depth_loss_weight > 0 :
-            #     depth = var.depth.view(batch_size,3,opt.H*opt.W).permute(0,2,1)
-            #     if opt.nerf.rand_rays and mode in ["train","test-optim"]:
-                    # depth = depth[:,var.ray_idx]
-            #     depth_loss = self.compute_depth_loss(depth, extras['z_vals'], extras['weights'], target_d, target_vd)
-            #     loss = loss + opt.depth.depth_loss_weight * depth_loss
+
+        if opt.depth.use_depth_loss and opt.depth.depth_loss_weight > 0:
+            depth_hat = var.depth.view(batch_size , opt.H*opt.W)  #(batch , H*W, 1)
+            depth, confidence = self.get_depth(opt,var,mode=mode) # [batch?,H,W]
+            depth, confidence = depth[var.idx,].view(batch_size,-1), confidence[var.idx,].view(batch_size,-1)  #[batch, H*W]
+            depth, confidence = depth.unsqueeze(-1), confidence.unsqueeze(-1) ##[batch, H*W,1]
+
+            if opt.nerf.rand_rays and mode in ["train","test-optim"]:
+                depth_hat = depth_hat[:,var.ray_idx]
+                depth = depth[:,var.ray_idx]
+                confidence = confidence[:,var.ray_idx]
+            #get_3D_points_from_depth , get_center_and_ray
+            depth_loss = self.compute_depth_loss(depth, confidence, extras['z_vals'], extras['weights'], target_d, target_vd)
+            # loss = loss + opt.depth.depth_loss_weight * depth_loss # fix!!!! loss.depth_render =
         return loss
 
     def get_pose(self,opt,var,mode=None):
@@ -533,47 +542,41 @@ class Graph(base.Graph):
         confidence = confidence[..., None]
         near = torch.ones_like(depth)
         far = torch.ones_like(depth)
-
         #condition 2
         condi2 = confidence[..., 0] == 2
-        near[condi2]= torch.clamp(depth[condi2]-0.3 ,max=0)
+        near[condi2]= torch.clamp(depth[condi2]-0.3 ,min=0)
         far[condi2] = depth[condi2]+0.3
 
         condi1 = confidence[..., 0] == 1
-        near[condi1] = torch.clamp(depth[condi1]-1 ,max=0)
-        far[condi1] = depth[condi1]+1
+        near[condi1] = torch.clamp(depth[condi1]-0.8 ,min=0)
+        far[condi1] = depth[condi1]+0.8
 
         condi0 = confidence[..., 0] == 0
-        near[condi0]= torch.clamp(depth[condi0]-0.5,max=4.5)
-        far[condi0] = torch.clamp(depth[condi0]+0.5,min=depth_max)
-        return near[...,0],far[...,]  #[B,H*W]
+        near[condi0]= torch.clamp(depth[condi0]-0.3,max=4)
+        far[condi0] = torch.clamp(depth[condi0]+0.3,min=depth_max)
+        return near[...,0],far[...,0]  #[B,H*W]
 
     def sample_depth(self,opt,batch_size,num_rays=None,idx=None,ray_idx=None,depth=None,confidence=None):
-        depth_min,depth_max = opt.nerf.depth.range
-
-        # sample_intvs : sampling point num
+        # depth_min,depth_max = opt.nerf.depth.range
+        # sample_intvs : sampling point num , idx : batch_num
         num_rays = num_rays or opt.H * opt.W
         rand_samples = torch.rand(batch_size,num_rays,opt.nerf.sample_intvs,1,device=opt.device) if opt.nerf.sample_stratified else 0.5
         rand_samples += torch.arange(opt.nerf.sample_intvs, device=opt.device)[None, None,:,None].float()  # [B,HW,N,1]
-        # (batch,num_rays,n,1)(1,1024,128,1)
 
-        #idx : batch_num
         if depth is not None and confidence is not None: # [train_num,H,W]
             depth = depth[idx,:,:].view(batch_size,-1) #[B,H*W]
-            confidence = confidence[idx,:,:].view(batch_size,-1) #[B,H*W]
-            near,far = self.precompute_depth_sampling(opt,depth, confidence)  # [B,H*W]
-            near, far = near[:,ray_idx], far[:,ray_idx]
-            near, far = near.unsqueeze(-1), far.unsqueeze(-1)
-            near, far = near.expand_as(rand_samples[...,0]), far.expand_as(rand_samples[...,0]) #[B,H*W,N]
             # depth = depth[:,ray_idx]
             # depth = depth.unsqueeze(-1)
-            # depth = depth.expand_as(rand_samples[...,0])
-            #[B,H*W,N]
+            # depth = depth.expand_as(rand_samples[...,0])#[B,H*W,N]
+            confidence = confidence[idx,:,:].view(batch_size,-1) #[B,H*W]
+            near,far = self.precompute_depth_sampling(opt,depth, confidence)  # [B,H*W]
+            near, far = near[:,ray_idx],far[:, ray_idx]
+            near, far = near.unsqueeze(-1), far.unsqueeze(-1)
+            near, far = near.expand_as(rand_samples[...,0]),  far.expand_as(rand_samples[...,0])  #[B,H*W,N]
+            near, far = near.unsqueeze(-1), far.unsqueeze(-1)  # [B,H*W,N,1]
 
-            near, far = near.unsqueeze(-1), far.unsqueeze(-1)#[B,H*W,N,1]
-
-            # (batch,num_rays,n,1)(1,1024,128,1)
-        depth_samples = rand_samples/opt.nerf.sample_intvs *(depth_max-depth_min)+depth_min # [B,HW,N,1] [1,1024,128,1]
+        # depth_samples = rand_samples/opt.nerf.sample_intvs * (depth_max-depth_min) + depth_min # [B,HW,N,1] [1,1024,128,1]
+        depth_samples = rand_samples/opt.nerf.sample_intvs * (far - near) + near # [B,HW,N,1] [1,1024,128,1]
         depth_samples = dict(
             metric=depth_samples,
             inverse=1/(depth_samples+1e-8),
