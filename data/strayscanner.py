@@ -54,7 +54,7 @@ class Dataset(base.Dataset):
         if opt.data.preload:
             self.images = self.preload_threading(opt,self.get_image)
             self.cameras = self.preload_threading(opt,self.get_camera,data_str="cameras")
-            self.depth = self.preload_threading(opt, self.get_depth,data_str="depth")
+            self.gt_depth = self.preload_threading(opt, self.get_depth,data_str="depth")
             self.confidence = self.preload_threading(opt, self.get_confidence, data_str="confidence")
 
 
@@ -118,16 +118,15 @@ class Dataset(base.Dataset):
         image = self.images[idx] if opt.data.preload else self.get_image(opt,idx)
         image = self.preprocess_image(opt,image,aug=aug)
 
-        depth = self.depth[idx] if opt.data.preload else self.get_depth(opt,idx)
         confidence = self.confidence[idx] if opt.data.preload else self.get_confidence(opt,idx)
-
-
+        gt_depth = self.depth[idx] if opt.data.preload else self.get_depth(opt,idx)
         intr,pose = self.cameras[idx] if opt.data.preload else self.get_camera(opt,idx) #(3,4)
         intr,pose = self.preprocess_camera(opt,intr,pose,aug=aug)
         sample.update(
             image=image,
-            depth=depth,
+            # depth=depth,
             confidence=confidence,
+            gt_depth=gt_depth,
             intr=intr,
             pose=pose,
         )

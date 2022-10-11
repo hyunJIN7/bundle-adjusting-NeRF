@@ -58,7 +58,9 @@ class Model(base.Model):
             if self.it<self.iter_start: continue
             # set var to all available images
             var = self.train_data.all
-            self.train_iteration(opt,var,loader)
+            ret = edict(origin_var=self.train_data.all)
+            var.update(ret)
+            self.train_iteration(opt,var,loader,)
             if opt.optim.sched: self.sched.step()
             if self.it%opt.freq.val==0: self.validate(opt,self.it)
             if self.it%opt.freq.ckpt==0: self.save_checkpoint(opt,ep=None,it=self.it)
@@ -161,9 +163,12 @@ class Model(base.Model):
         for i,batch in enumerate(loader):
             var = edict(batch)
             var = util.move_to_device(var,opt.device)
+            ret = edict(origin_var=var)
+            var.update(ret)
             if opt.data.dataset in ["iphone","arkit","blender","strayscanner"] and opt.optim.test_photo:
                 # run test-time optimization to factorize imperfection in optimized poses from view synthesis evaluation
                 print("???????????????? dpeht,confi shpae ", var.depth.shape, var.confidence.shape)
+
                 var = self.evaluate_test_time_photometric_optim(opt,var)
             var = self.graph.forward(opt,var,mode="eval")
             # evaluate view synthesis
@@ -275,6 +280,7 @@ class Model(base.Model):
             for i, batch in enumerate(loader):
                 var = edict(batch)
                 var = util.move_to_device(var, opt.device)
+                var.origin = var
                 if opt.data.dataset in ["iphone", "arkit", "blender","strayscanner"] and opt.optim.test_photo:
                     # run test-time optimization to factorize imperfection in optimized poses from view synthesis evaluation
                     var = self.evaluate_test_time_photometric_optim(opt, var)
@@ -438,8 +444,7 @@ class Graph(base.Graph):
         #Here!!!!!!
         depth, confidence = None,None
         if opt.depth.use_depth :
-            depth,confidence = self.get_depth(opt,var,mode=mode)
-            # print("@@@@@@@@@@@@@@ nerf forward var.idx ", var.idx)
+            depth, confidence = self.get_depth(opt, var, mode=mode)
             print("@@@@@@@@@@ use _depth depth,confi shape", depth.shape,confidence.shape)
 
         # render images
@@ -482,12 +487,11 @@ class Graph(base.Graph):
 
         if opt.depth.use_depth_loss and opt.loss_weight.depth > 0:
             pred_depth = var.depth.view(batch_size , opt.H*opt.W)  #(batch , H*W, 1)
+            # var.ray_idx
             depth, confidence = self.get_depth(opt,var,mode=mode) # [batch?,H,W]
             depth, confidence = depth[var.idx,].view(batch_size,-1), confidence[var.idx,].view(batch_size,-1)  #[batch, H*W]
             depth, confidence = depth.unsqueeze(-1), confidence.unsqueeze(-1) ##[batch, H*W,1]
-
-
-            if opt.nerf.rand_rays and mode in ["train","test-optim"]: #TODO : this line ???
+            if opt.nerf.rand_rays and mode in ["train","test-optim"]:
                 pred_depth = pred_depth[:,var.ray_idx]
                 depth = depth[:,var.ray_idx]  #gt
                 confidence = confidence[:,var.ray_idx]
@@ -500,9 +504,8 @@ class Graph(base.Graph):
         return var.pose
 
     def get_depth(self,opt,var,mode=None):
-        print("----get_depth depth", var.depth.shape)
-        print("----get_depth confidence", var.confidence.shape)
-        return var.depth , var.confidence
+        # return var.origin_var.depth , var.origin_var.confidence
+        return var.gt_depth, var.confidence
 
     def render(self,opt,pose,intr=None,ray_idx=None,mode=None,idx=None,depth=None,confidence=None):
         batch_size = len(pose)
@@ -520,6 +523,8 @@ class Graph(base.Graph):
         print("**** ")
         depth_samples = self.sample_depth(opt,batch_size,num_rays=ray.shape[1], idx=idx,ray_idx=ray_idx,depth=depth,confidence=confidence) # [B,HW,N,1] , idx : batch, ray_idx : ray num
         rgb_samples,density_samples = self.nerf.forward_samples(opt,center,ray,depth_samples,mode=mode)
+
+
         rgb,depth,opacity,prob = self.nerf.composite(opt,ray,rgb_samples,density_samples,depth_samples)
         ret = edict(rgb=rgb,depth=depth,opacity=opacity,prob=prob,depth_samples=depth_samples) # [B,HW,K]
 
@@ -566,9 +571,6 @@ class Graph(base.Graph):
         print("!!!!!!!!! torch.clamp(depth[condi2]-0.3 ,min=0) shape : ",torch.clamp(depth[condi2]-0.3 ,min=0).shape)
 
         near[condi2]= torch.clamp(depth[condi2]-0.3 ,min=0)
-
-        print("!!!!!!!!! near shape : ", near.shape)
-
         far[condi2] = depth[condi2]+0.3
 
         condi1 = confidence[..., 0] == 1
@@ -581,6 +583,12 @@ class Graph(base.Graph):
         return near[...,0],far[...,0]  #[B,H*W]
 
     def sample_depth(self,opt,batch_size,num_rays=None,idx=None,ray_idx=None,depth=None,confidence=None):
+        """
+            이 과정을 거치고 나면 depth는 이미지에소 ray_idx만 샘플링되어 업데이트 되지만 confidence는 원본 그대로이기 때문에
+            다음에 다시 불리면 shape이 달라 에러 발생.  -> use bool flag
+            shape이 다른 경우에 confidence를 depth와 shape을 맞춰주기 위해 confidence만 ray_idx로 골라내고
+            near,far도 shape 같은 처음 경우에만 sampling 하게 만들어야한다.
+        """
         near,far = opt.nerf.depth.range
         # sample_intvs : sampling point num , idx : batch_num
         num_rays = num_rays or opt.H * opt.W
@@ -601,10 +609,17 @@ class Graph(base.Graph):
             # depth = depth.expand_as(rand_samples[...,0])#[B,H*W,N]
             confidence = confidence[idx,:,:].view(batch_size,-1) #[B,H*W]
 
+            flag = False
+            if depth.shape != confidence.shape: flag = True
             print("22########depth shape, confi shape : ",depth.shape,'  ', confidence.shape)
-
+            if flag : confidence = confidence[:,ray_idx]
             near,far = self.precompute_depth_sampling(opt,depth, confidence)  # [B,H*W]
-            near, far = near[:,ray_idx],far[:, ray_idx]
+
+            print("333#######near,far shape : ",near.shape,'  ', far.shape)
+
+            if flag==False:
+                near, far = near[:,ray_idx],far[:, ray_idx]
+            print("44#######near,far shape : ", near.shape, '  ', far.shape)
             near, far = near.unsqueeze(-1), far.unsqueeze(-1)
             near, far = near.expand_as(rand_samples[...,0]),  far.expand_as(rand_samples[...,0])  #[B,H*W,N]
             near, far = near.unsqueeze(-1), far.unsqueeze(-1)  # [B,H*W,N,1]

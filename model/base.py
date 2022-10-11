@@ -114,6 +114,8 @@ class Model():
         self.timer.it_start = time.time()
         # train iteration
         self.optim.zero_grad()
+        ret = edict(origin_var=self.train_data.all)
+        var.update(ret)
         var = self.graph.forward(opt,var,mode="train")
         loss = self.graph.compute_loss(opt,var,mode="train")
         loss = self.summarize_loss(opt,var,loss)
@@ -150,6 +152,8 @@ class Model():
         for it,batch in enumerate(loader): #TODO : 여기서 안넘어감... batch  dict n
             var = edict(batch)
             var = util.move_to_device(var,opt.device)
+            ret = edict(origin_var=var)
+            var.update(ret)
             var = self.graph.forward(opt,var,mode="val")
             loss = self.graph.compute_loss(opt,var,mode="val")
             loss = self.summarize_loss(opt,var,loss)
@@ -211,7 +215,7 @@ class Graph(torch.nn.Module):
     #     delta_greater_than_expected = ((depth_mean - depth_measurement_mean).abs() - depth_measurement_std) > 0.  # P
     #     var_greater_than_expected = depth_measurement_std.pow(2) < depth_var                # Q?
     #     return torch.logical_or(delta_greater_than_expected, var_greater_than_expected)
-    def compute_depth_loss(self,pred_depth,z_vals ,weights,target_conf,  target_depth):
+    def compute_depth_loss(self,pred_depth, z_vals ,weights,target_conf,  target_depth):
         # shape :[batch, H*W,1]
         # target_conf : gt_confidence
         # target_depth : gt_depth
@@ -219,20 +223,37 @@ class Graph(torch.nn.Module):
         # confin 1 or 2 and gt_depth < 4.5
         condi1 = target_conf[...,0] != 0
         condi2 = target_depth[...,0] < 4.5
-        apply_depth_loss = torch.logical_and( condi1,condi2 )  # --> Where condition??
+        apply_depth_loss = torch.logical_and(condi1,condi2)  # --> Where condition??
+
+
+
+        print("%%%% depth loss %%%%%%")
+        print("%%%% apply_depth_loss shape ",apply_depth_loss.shape)
+
+
+
+
         pred_depth_mean = pred_depth[apply_depth_loss]
         if pred_depth_mean.shape[0] == 0:
             return torch.zeros((1,), device=pred_depth.device, requires_grad=True)
+
+
+        print("%%%% z_vals[apply_depth_loss] shape ",z_vals[apply_depth_loss].shape)
+        print("%%%% pred_depth_mean.unsqueeze(-1)) shape ",  pred_depth_mean.unsqueeze(-1).shape    )
+        print("%%%% pred_depth_mean.unsqueeze(-1)).pow(2) shape ",pred_depth_mean.unsqueeze(-1).pow(2).shape)
+        print("%%%% weights[apply_depth_loss]) shape ",weights[apply_depth_loss].shape)
+        print("%%%% weights[apply_depth_loss]).sum(-1) shape ", weights[apply_depth_loss].shape)
+
+
         pre_confi = ((z_vals[apply_depth_loss] - pred_depth_mean.unsqueeze(-1)).pow(2) * weights[apply_depth_loss]).sum(-1) + 1e-5
         gt_depth = target_depth[apply_depth_loss]
-        # target_mean = target_depth[..., 0]
-        gt_confi = target_conf[apply_depth_loss]
-        # target_std = target_depth[..., 1]
-
-        # apply_depth_loss = self.is_not_in_expected_distribution(pred_mean, gt_depth, gt_confi)
-                                                   #z^(predict_depth),  z(gt_depth), s(gt_varia)
+        # gt_confi = target_conf[apply_depth_loss]
+        print("%%%% pre_confi shape ",pre_confi.shape)
+        print("%%%% gt_depth shape ",gt_depth.shape)
+        print("%%%% pred_depth_mean shape ",pred_depth_mean.shape)
+        print("%%%% target_depth shape ",target_depth.shape)
 
 
         f = nn.GaussianNLLLoss(eps=0.001)
-        return float(pred_depth_mean.shape[0]) / float(target_depth.shape[0]) * f(pred_depth_mean, gt_depth, pre_confi)
+        return float(gt_depth.shape[0]) / float(target_depth.shape[0]) * f(pred_depth_mean, gt_depth, pre_confi)
 
