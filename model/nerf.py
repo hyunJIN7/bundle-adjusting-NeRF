@@ -163,17 +163,12 @@ class Model(base.Model):
             var = util.move_to_device(var,opt.device)
             if opt.data.dataset in ["iphone","arkit","blender","strayscanner"] and opt.optim.test_photo:
                 # run test-time optimization to factorize imperfection in optimized poses from view synthesis evaluation
+                print("???????????????? dpeht,confi shpae ", var.depth.shape, var.confidence.shape)
                 var = self.evaluate_test_time_photometric_optim(opt,var)
             var = self.graph.forward(opt,var,mode="eval")
             # evaluate view synthesis
             invdepth = (1-var.depth)/var.opacity if opt.camera.ndc else 1/(var.depth/var.opacity+eps)
             rgb_map = var.rgb.view(-1,opt.H,opt.W,3).permute(0,3,1,2) # [B,3,H,W]
-
-            # print('rgb map ',rgb_map)
-            # print('var.image ',var.image)
-            # print('rgb map min ',np.array(rgb_map.cpu()).min())
-            # print('rgb map max ',np.array(rgb_map.cpu()).max())
-
             invdepth_map = invdepth.view(-1,opt.H,opt.W,1).permute(0,3,1,2) # [B,1,H,W]
             psnr = -10*self.graph.MSE_loss(rgb_map,var.image).log10().item()
             ssim = pytorch_ssim.ssim(rgb_map,var.image).item()
@@ -328,7 +323,7 @@ class Model(base.Model):
                 scale = 1
             # rotate novel views around the "center" camera of all poses
             idx_center = (poses-poses.mean(dim=0,keepdim=True))[...,3].norm(dim=-1).argmin()
-            pose_novel = camera.get_novel_view_poses(opt,poses[idx_center],N=10,scale=scale).to(opt.device)
+            pose_novel = camera.get_novel_view_poses(opt,poses[idx_center],N=20,scale=scale).to(opt.device)
             #TODO : novel_view check
             print('$$$ {} novel_view idx_center : {} '.format(opt.data.dataset,idx_center))
             print('$$$ {} pose_novel[0] : {} '.format(opt.data.dataset,pose_novel[0]))
@@ -386,14 +381,16 @@ class Model(base.Model):
 
             else :
                 poses = pose_GT
+
             if opt.model == "barf" and opt.data.dataset == "llff":
                 _, sim3 = self.prealign_cameras(opt, pose_pred, pose_GT)
                 scale = sim3.s1 / sim3.s0
             else:
                 scale = 1
+
             # rotate novel views around the "center" camera of all poses
             idx_center = (poses - poses.mean(dim=0, keepdim=True))[..., 3].norm(dim=-1).argmin()
-            pose_novel = camera.get_novel_view_poses(opt, poses[idx_center], N=10, scale=scale).to(opt.device)
+            pose_novel = camera.get_novel_view_poses(opt, poses[idx_center], N=20, scale=scale).to(opt.device)
             # TODO : novel_view check
             print('############origin novel view################')
             print('$$$ {} novel_view idx_center : {} '.format(opt.data.dataset, idx_center))
@@ -403,8 +400,7 @@ class Model(base.Model):
             # render the novel views
             novel_path = "{}/novel_view_origin".format(opt.output_path)
             os.makedirs(novel_path, exist_ok=True)
-            pose_novel_tqdm = tqdm.tqdm(pose_novel, desc="rendering origin "
-                                                         "novel views", leave=False)
+            pose_novel_tqdm = tqdm.tqdm(pose_novel, desc="rendering origin novel views", leave=False)
             intr = edict(next(iter(self.test_loader))).intr[:1].to(opt.device)  # grab intrinsics
             for i, pose in enumerate(pose_novel_tqdm):
                 ret = self.graph.render_by_slices(opt, pose[None], intr=intr) if opt.nerf.rand_rays else \
@@ -436,27 +432,35 @@ class Graph(base.Graph):
     def forward(self,opt,var,mode=None):
         batch_size = len(var.idx) #forward
         pose = self.get_pose(opt,var,mode=mode)
-        # print("@@@@@@@@@@@@@@ nerf forward var.idx ", var.idx)
-        # print("@@@@@@@@@@@@@@ nerf forward batch_size ", batch_size)
+        print("@@@@@@@@@@@@@@ nerf forward var.idx ", var.idx)
+        print("@@@@@@@@@@@@@@ nerf forward batch_size ", batch_size)
 
         #Here!!!!!!
         depth, confidence = None,None
         if opt.depth.use_depth :
             depth,confidence = self.get_depth(opt,var,mode=mode)
+            # print("@@@@@@@@@@@@@@ nerf forward var.idx ", var.idx)
+            print("@@@@@@@@@@ use _depth depth,confi shape", depth.shape,confidence.shape)
 
         # render images
         if opt.nerf.rand_rays and mode in ["train","test-optim"]:
             # sample random rays for optimization
             var.ray_idx = torch.randperm(opt.H*opt.W,device=opt.device)[:opt.nerf.rand_rays//batch_size]
+
+
             ret = self.render(opt,pose,intr=var.intr,ray_idx=var.ray_idx,mode=mode,idx=var.idx,depth=depth,confidence=confidence) # [B,N,3],[B,N,1]
         else:
             # render full image (process in slices)
             ret = self.render_by_slices(opt,pose,intr=var.intr,mode=mode,idx=var.idx,depth=depth,confidence=confidence) if opt.nerf.rand_rays else \
                   self.render(opt,pose,intr=var.intr,mode=mode,idx=var.idx,depth=depth,confidence=confidence) # [B,HW,3],[B,HW,1]
+
+
         var.update(ret)
 
         depth = var.depth
-        # print("!!!!! depth shape :", depth.shape)
+        confidence = var.confidence
+        print("^^^^^^ret update  depth shape :", depth.shape)
+        print("^^^^^^ret update  confi shape :", confidence.shape)
         return var
 
     def compute_loss(self,opt,var,mode=None):
@@ -496,6 +500,8 @@ class Graph(base.Graph):
         return var.pose
 
     def get_depth(self,opt,var,mode=None):
+        print("----get_depth depth", var.depth.shape)
+        print("----get_depth confidence", var.confidence.shape)
         return var.depth , var.confidence
 
     def render(self,opt,pose,intr=None,ray_idx=None,mode=None,idx=None,depth=None,confidence=None):
@@ -510,6 +516,8 @@ class Graph(base.Graph):
             # convert center/ray representations to NDC
             center,ray = camera.convert_NDC(opt,center,ray,intr=intr)
         # render with main MLP
+        print("**** mode :",mode)
+        print("**** ")
         depth_samples = self.sample_depth(opt,batch_size,num_rays=ray.shape[1], idx=idx,ray_idx=ray_idx,depth=depth,confidence=confidence) # [B,HW,N,1] , idx : batch, ray_idx : ray num
         rgb_samples,density_samples = self.nerf.forward_samples(opt,center,ray,depth_samples,mode=mode)
         rgb,depth,opacity,prob = self.nerf.composite(opt,ray,rgb_samples,density_samples,depth_samples)
@@ -546,11 +554,21 @@ class Graph(base.Graph):
         # [B,H*W]
         depth = depth[...,None]
         confidence = confidence[..., None]
-        near = torch.ones_like(depth)
-        far = torch.ones_like(depth)
+        near = torch.ones_like(depth,device=opt.device)
+        far = torch.ones_like(depth,device=opt.device)
         #condition 2
         condi2 = confidence[..., 0] == 2
+        print("!!!!!!!!! near shape : ",near.shape)
+        print("!!!!!!!!! condi2 shape : ",condi2.shape)
+        print("!!!!!!!!! depth shape : ",depth.shape)
+        print("!!!!!!!!! near[condi2] shape : ",near[condi2].shape)
+        print("!!!!!!!!! depth[condi2] shape : ",depth[condi2].shape)
+        print("!!!!!!!!! torch.clamp(depth[condi2]-0.3 ,min=0) shape : ",torch.clamp(depth[condi2]-0.3 ,min=0).shape)
+
         near[condi2]= torch.clamp(depth[condi2]-0.3 ,min=0)
+
+        print("!!!!!!!!! near shape : ", near.shape)
+
         far[condi2] = depth[condi2]+0.3
 
         condi1 = confidence[..., 0] == 1
@@ -570,11 +588,21 @@ class Graph(base.Graph):
         rand_samples += torch.arange(opt.nerf.sample_intvs, device=opt.device)[None, None,:,None].float()  # [B,HW,N,1]
 
         if depth is not None and confidence is not None: # [train_num,H,W]
+            print("11#########depth shape, confi shape : ", depth.shape, '  ', confidence.shape)
+            print("batch size : ",batch_size)
+            print("num_rays  ",num_rays)
+            print("ray_idx ", ray_idx)
+            print("ray_idx.shape ", ray_idx.shape)
+
+            print("idx shape :" , idx.shape)
             depth = depth[idx,:,:].view(batch_size,-1) #[B,H*W]
             # depth = depth[:,ray_idx]
             # depth = depth.unsqueeze(-1)
             # depth = depth.expand_as(rand_samples[...,0])#[B,H*W,N]
             confidence = confidence[idx,:,:].view(batch_size,-1) #[B,H*W]
+
+            print("22########depth shape, confi shape : ",depth.shape,'  ', confidence.shape)
+
             near,far = self.precompute_depth_sampling(opt,depth, confidence)  # [B,H*W]
             near, far = near[:,ray_idx],far[:, ray_idx]
             near, far = near.unsqueeze(-1), far.unsqueeze(-1)

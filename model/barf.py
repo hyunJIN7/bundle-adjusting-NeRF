@@ -125,8 +125,6 @@ class Model(nerf.Model):
         return pose,pose_GT
 
 
-
-
     @torch.no_grad()
     def prealign_cameras(self,opt,pose,pose_GT):
         # compute 3D similarity transform via Procrustes analysis
@@ -148,7 +146,7 @@ class Model(nerf.Model):
     @torch.no_grad()
     def evaluate_camera_alignment(self,opt,pose_aligned,pose_GT):
         # measure errors in rotation and translation
-        R_aligned,t_aligned = pose_aligned.split([3,1],dim=-1) #TODO:shape
+        R_aligned,t_aligned = pose_aligned.split([3,1],dim=-1)
         R_GT,t_GT = pose_GT.split([3,1],dim=-1)
         R_error = camera.rotation_distance(R_aligned,R_GT)
         t_error = (t_aligned-t_GT)[...,0].norm(dim=-1)
@@ -184,6 +182,7 @@ class Model(nerf.Model):
         for it in iterator:
             optim_pose.zero_grad()
             var.pose_refine_test = camera.lie.se3_to_SE3(var.se3_refine_test)
+            print("&&&&&&&&& dpeht,confi shpae ", var.depth.shape, var.confidence.shape)
             var = self.graph.forward(opt,var,mode="test-optim")
             loss = self.graph.compute_loss(opt,var,mode="test-optim")
             loss = self.summarize_loss(opt,var,loss)

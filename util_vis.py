@@ -148,16 +148,19 @@ def get_camera_mesh(pose,depth=1):
                              [x,x,z],
                              [-0.1,0.1,z],
                              [0,0,0]])*depth
-    # vertices = torch.tensor([[-0.3,-0.3,0.5],
-    #                          [0.3,-0.3,0.5],
-    #                          [0.3,0.3,0.5],
-    #                          [-0.3,0.3,0.5],
-    #                          [0,0,0]])*depth
-    # vertices = torch.tensor([[-0.5,-0.5,1],
-    #                          [0.5,-0.5,1],
-    #                          [0.5,0.5,1],
-    #                          [-0.5,0.5,1],
-    #                          [0,0,0]])*depth
+    faces = torch.tensor([[0,1,2],
+                          [0,2,3],
+                          [0,1,4],
+                          [1,2,4],
+                          [2,3,4],
+                          [3,0,4]])
+
+    #origin
+    vertices = torch.tensor([[-0.5,-0.5,1],
+                             [0.5,-0.5,1],
+                             [0.5,0.5,1],
+                             [-0.5,0.5,1],
+                             [0,0,0]])*depth
     faces = torch.tensor([[0,1,2],
                           [0,2,3],
                           [0,1,4],
@@ -282,8 +285,11 @@ def plot_save_poses(opt, fig, pose, pose_ref=None, path=None, ep=None):
     plt.title("epoch {}".format(ep))
     ax1 = fig.add_subplot(121, projection="3d")
     ax2 = fig.add_subplot(122, projection="3d")
-    setup_3D_plot(ax1, elev=-90, azim=-90, lim=edict(x=(-0.6, 0.6), y=(-0.6, 0.6), z=(-0.6, 0.6)))  # x=(-1,1),y=(-1,1),z=(-1,1)
-    setup_3D_plot(ax2, elev=0, azim=-90, lim=edict(x=(-0.6, 0.6), y=(-0.6, 0.6), z=(-0.6, 0.6)))
+
+    bound = 0.6
+
+    setup_3D_plot(ax1, elev=-90, azim=-90, lim=edict(x=(-bound, bound), y=(-bound, bound), z=(-bound, bound)))  # x=(-1,1),y=(-1,1),z=(-1,1)
+    setup_3D_plot(ax2, elev=0, azim=-90, lim=edict(x=(-bound, bound), y=(-bound, bound), z=(-bound, bound)))
     ax1.set_title("forward-facing view", pad=0)
     ax2.set_title("top-down view", pad=0)
     plt.subplots_adjust(left=0, right=1, bottom=0, top=0.95, wspace=0, hspace=0)
