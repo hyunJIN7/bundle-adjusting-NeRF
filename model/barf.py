@@ -182,8 +182,6 @@ class Model(nerf.Model):
         for it in iterator:
             optim_pose.zero_grad()
             var.pose_refine_test = camera.lie.se3_to_SE3(var.se3_refine_test)
-            print("&&&&&&&&& dpeht,confi shpae ", var.depth.shape, var.confidence.shape)
-
             var = self.graph.forward(opt,var,mode="test-optim")
             loss = self.graph.compute_loss(opt,var,mode="test-optim")
             loss = self.summarize_loss(opt,var,loss)
