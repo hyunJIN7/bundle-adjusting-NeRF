@@ -25,7 +25,7 @@ class Dataset(base.Dataset):
         self.root = opt.data.root or "data/iphone"
         self.path = "{}/{}".format(self.root,opt.data.scene)
 
-        self.path_image = "{}/rgb_train".format(self.path) if split != "test" else "{}/rgb_test".format(self.path)
+        self.path_image = "{}/rgb_train_val".format(self.path) if split != "test" else "{}/rgb_test".format(self.path)
         self.list = sorted(os.listdir(self.path_image), key=lambda f: int(f.split(".")[0]))  #이미지
 
         intrin_file = os.path.join(self.path, 'camera_matrix.csv')
@@ -36,7 +36,7 @@ class Dataset(base.Dataset):
         intrinsics[1,:] = intrinsics[1,:] / (1920/self.raw_W)
         self.intr = intrinsics
 
-        pose_path = "{}/odometry_train.csv".format(self.path) if split != "test" else "{}/odometry_{}.csv".format(self.path, split)
+        pose_path = "{}/odometry_train_val.csv".format(self.path) if split != "test" else "{}/odometry_{}.csv".format(self.path, split)
         # pose_path = os.path.join('./', pose_path)
         assert os.path.isfile(pose_path), "pose info:{} not found".format(pose_path)
         odometry = np.loadtxt(pose_path, delimiter=',')#, skiprows=1

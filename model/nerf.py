@@ -441,21 +441,14 @@ class Graph(base.Graph):
         if opt.nerf.rand_rays and mode in ["train","test-optim"]:
             # sample random rays for optimization
             var.ray_idx = torch.randperm(opt.H*opt.W,device=opt.device)[:opt.nerf.rand_rays//batch_size]
-
-
             ret = self.render(opt,pose,intr=var.intr,ray_idx=var.ray_idx,mode=mode,idx=var.idx,depth=depth,confidence=confidence) # [B,N,3],[B,N,1]
         else:
             # render full image (process in slices)
             ret = self.render_by_slices(opt,pose,intr=var.intr,mode=mode,idx=var.idx,depth=depth,confidence=confidence) if opt.nerf.rand_rays else \
                   self.render(opt,pose,intr=var.intr,mode=mode,idx=var.idx,depth=depth,confidence=confidence) # [B,HW,3],[B,HW,1]
-
-
         var.update(ret)
-
         depth = var.depth
         confidence = var.confidence
-        print("^^^^^^ret update  depth shape :", depth.shape)
-        print("^^^^^^ret update  confi shape :", confidence.shape)
         return var
 
     def compute_loss(self,opt,var,mode=None):
@@ -506,12 +499,10 @@ class Graph(base.Graph):
             # convert center/ray representations to NDC
             center,ray = camera.convert_NDC(opt,center,ray,intr=intr)
         # render with main MLP
-        print("**** mode :",mode)
-        print("**** ")
+        # print("**** mode :",mode)
+        # print("**** ")
         depth_samples = self.sample_depth(opt,batch_size,num_rays=ray.shape[1], idx=idx,ray_idx=ray_idx,depth=depth,confidence=confidence) # [B,HW,N,1] , idx : batch, ray_idx : ray num
         rgb_samples,density_samples = self.nerf.forward_samples(opt,center,ray,depth_samples,mode=mode)
-
-
         rgb,depth,opacity,prob = self.nerf.composite(opt,ray,rgb_samples,density_samples,depth_samples)
         ret = edict(rgb=rgb,depth=depth,opacity=opacity,prob=prob,depth_samples=depth_samples) # [B,HW,K]
 

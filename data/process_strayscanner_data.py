@@ -19,7 +19,7 @@ DEPTH_HEIGHT = 192
 MAX_DEPTH = 20.0
 
 #  conda activate StrayVisualizer-main
-# python data/process_strayscanner_data.py --basedir ./data/strayscanner/computer2
+# python data/process_strayscanner_data.py --basedir ./data/strayscanner/computer
 # python data/process_strayscanner_data.py --basedir ./data/strayscanner/dinosaur
 # python data/process_strayscanner_data.py --basedir ./data/strayscanner/xyz
 def config_parser():
@@ -28,7 +28,9 @@ def config_parser():
 
     parser.add_argument("--basedir", type=str, default='./data/strayscanner/computer',
                         help='input data directory')
-    parser.add_argument("--num_train", type=int, default=140,
+    parser.add_argument("--num_train", type=int, default=130,
+                        help='number of train data')
+    parser.add_argument("--num_test", type=int, default=20,
                         help='number of train data')
     return parser
 
@@ -54,7 +56,7 @@ def make_dir(path):
     if not os.path.exists(path):
         os.mkdir(path)
 
-def process_stray_scanner(args, data, split = 'train'):
+def process_stray_scanner(args, data,split='train'):
     rgb_path = "{}/rgb_{}".format(args.basedir, split)
     depth_path = "{}/depth_{}".format(args.basedir, split)
     confidence_path = "{}/confidence_{}".format(args.basedir, split)
@@ -62,23 +64,51 @@ def process_stray_scanner(args, data, split = 'train'):
     make_dir(depth_path)
     make_dir(confidence_path)
 
+    n = data['odometry'].shape[0]
     num_train = args.num_train
     num_val = 4
+    num_test = args.num_test
+
+
+    all_index = np.arange(n)
+    train_val_index = np.linspace(0, n, num_train+num_val, endpoint=False, dtype=int)
+    train_index = train_val_index[:-num_val]
+    val_index = train_val_index[-num_val:]
+    test_index = np.delete(all_index,train_val_index)
+    test_index = np.random.choice(test_index,num_test,replace=False)
+    # print("train ", train_index)
+    # print("val ", val_index)
+    # print("test_index ", test_index)
+    # print("train_val_index ", train_val_index)
+
+
+    # print("list rgb ",data['rgb'])
+    rgbs = np.array(data['rgb'])
+    # print("np rgb ", rgbs)
+    depths = np.array(data['depth'])
+    confidences = np.array(data['confidence'])
+    poses = np.array(data['odometry'])
     if split == 'train':
-        rgbs = data['rgb'][:num_train]
-        depths = data['depth'][:num_train]
-        confidences = data['confidence'][:num_train]
-        poses = data['odometry'][:num_train]
+        rgbs = rgbs[train_index]
+        depths = depths[train_index]
+        confidences = confidences[train_index]
+        poses = poses[train_index]
     elif split == 'val':
-        rgbs = data['rgb'][num_train:num_train+num_val]
-        depths = data['depth'][num_train:num_train+num_val]
-        confidences = data['confidence'][num_train:num_train+num_val]
-        poses = data['odometry'][num_train:num_train+num_val]
-    else :
-        rgbs = data['rgb'][num_train+num_val:]
-        depths = data['depth'][num_train+num_val:]
-        confidences = data['confidence'][num_train+num_val:]
-        poses = data['odometry'][num_train+num_val:]
+        rgbs = rgbs[val_index]
+        depths = depths[val_index]
+        confidences = confidences[val_index]
+        poses = poses[val_index]
+    elif split == 'test':
+        rgbs = rgbs[test_index]
+        depths = depths[test_index]
+        confidences = confidences[test_index]
+        poses = poses[test_index]
+    else:
+        rgbs = rgbs[train_val_index]
+        depths = depths[train_val_index]
+        confidences = confidences[train_val_index]
+        poses = poses[train_val_index]
+
 
     pose_fname = "{}/odometry_{}.csv".format(args.basedir, split)
     pose_file = open(pose_fname,'w')#,newline=','
@@ -133,8 +163,8 @@ def main(args):
     data['confidence'] = confidences
     data['depth']=depths
     data['rgb']=rgbs
-    split=['train','val','test']
-    # train : val : test = args.num_train : 4 : remainder
+
+    split = ['train', 'val', 'test','train_val']
     for mode in split:
         process_stray_scanner(args,data,mode)
 
