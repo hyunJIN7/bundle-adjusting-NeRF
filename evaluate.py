@@ -25,12 +25,10 @@ def main():
             # m.generate_optim_pose_oneNall(opt) # 논문에 그릴 포즈 select 하기 위한 파트
             # m.generate_optim_pose_onebyone(opt)  # 논문에 그릴 포즈 select 하기 위한 파트
             # m.generate_optim_pose(opt) #  논문에 넣을 select한 포즈만 그리기 위한 파트
+            m.generate_videos_pose(opt)
+            m.restore_checkpoint(opt)
+            m.evaluate_ckt(opt)
 
-
-            # m.generate_videos_pose(opt)
-            # m.restore_checkpoint(opt)
-            # m.evaluate_ckt(opt)
-            print()
 
         m.restore_checkpoint(opt)
         if opt.data.dataset in ["blender","llff","arkit","iphone","strayscanner"]:
