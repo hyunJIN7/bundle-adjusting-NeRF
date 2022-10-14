@@ -52,14 +52,7 @@ class Dataset(base.Dataset):
         poses = torch.from_numpy(np.array(poses)).float()
         self.cam_pose = poses
 
-        if split != "test" : #train,val
-            # manually split train/val subsets
-            num_val_split = int(len(self) * opt.data.val_ratio)  # len * 0.1
-            self.list = self.list[:-num_val_split] if split == "train" else self.list[-num_val_split:]  # 전체에서 0.9 : 0.1 = train : test 비율
-            self.cam_pose = self.cam_pose[:-num_val_split] if split == "train" else self.cam_pose[-num_val_split:]
-
         self.gt_pose = self.cam_pose
-
         self.opti_pose = self.cam_pose
         # for GT data(optitrack)
         # gt_pose_fname = "{}/opti_transforms_{}.txt".format(self.path,split)
@@ -82,11 +75,12 @@ class Dataset(base.Dataset):
         if subset:
             self.list = self.list[:subset] # val 4개만
             self.cam_pose = self.cam_pose[:subset]
+
         # preload dataset
         if opt.data.preload:
             self.images = self.preload_threading(opt, self.get_image)
-            self.cameras = self.preload_threading(opt, self.get_camera,
-                                                  data_str="cameras")  # get_all_camera_poses 로 감
+
+
     def prefetch_all_data(self,opt):
         assert(not opt.data.augment)
         # pre-iterate through all samples and group together

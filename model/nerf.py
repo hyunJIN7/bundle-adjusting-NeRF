@@ -321,9 +321,16 @@ class Model(base.Model):
                 scale = sim3.s1 / sim3.s0
             else:
                 scale = 1
+
+            print('#######novel poses target  from pose_GT #######')
+            print('$$$ {} pose_GT shape : {} '.format(opt.data.dataset, pose_GT.shape))
+            print('$$$ {} pose_GT[0] : {} '.format(opt.data.dataset, pose_GT[0]))
+            print('$$$ {} pose_GT[10] : {} '.format(opt.data.dataset, pose_GT[10]))
+            print('$$$ {} pose_GT[10] : {} '.format(opt.data.dataset, pose_GT[10]))
+
             # rotate novel views around the "center" camera of all poses
-            idx_center = (poses-poses.mean(dim=0,keepdim=True))[...,3].norm(dim=-1).argmin()
-            pose_novel = camera.get_novel_view_poses(opt,poses[idx_center],N=20,scale=scale).to(opt.device)
+            idx_center = (pose_GT-pose_GT.mean(dim=0,keepdim=True))[...,3].norm(dim=-1).argmin()
+            pose_novel = camera.get_novel_view_poses(opt,pose_GT[idx_center],N=20,scale=scale).to(opt.device)
             #TODO : novel_view check
             print('$$$ {} novel_view idx_center : {} '.format(opt.data.dataset,idx_center))
             print('$$$ {} pose_novel[0] : {} '.format(opt.data.dataset,pose_novel[0]))
@@ -374,7 +381,7 @@ class Model(base.Model):
             pose_pred, pose_GT = self.get_all_training_poses(opt)
             if opt.model == "barf":
                 poses = pose_pred
-                print('#######novel poses target#######')
+                print('#######novel poses target  from trained pose #######')
                 print('$$$ {} pose_pred[0] : {} '.format(opt.data.dataset, pose_pred[0]))
                 print('$$$ {} pose_pred[10] : {} '.format(opt.data.dataset, pose_pred[10]))
                 print('$$$ {} pose_pred[10] : {} '.format(opt.data.dataset, pose_pred[10]))
@@ -392,7 +399,7 @@ class Model(base.Model):
             idx_center = (poses - poses.mean(dim=0, keepdim=True))[..., 3].norm(dim=-1).argmin()
             pose_novel = camera.get_novel_view_poses(opt, poses[idx_center], N=20, scale=scale).to(opt.device)
             # TODO : novel_view check
-            print('############origin novel view################')
+            print('############origin novel view  from trained pose################')
             print('$$$ {} novel_view idx_center : {} '.format(opt.data.dataset, idx_center))
             print('$$$ {} pose_novel[0] : {} '.format(opt.data.dataset, pose_novel[0]))
             print('$$$ {} pose_novel[10] : {} '.format(opt.data.dataset, pose_novel[5]))
@@ -447,8 +454,6 @@ class Graph(base.Graph):
             ret = self.render_by_slices(opt,pose,intr=var.intr,mode=mode,idx=var.idx,depth=depth,confidence=confidence) if opt.nerf.rand_rays else \
                   self.render(opt,pose,intr=var.intr,mode=mode,idx=var.idx,depth=depth,confidence=confidence) # [B,HW,3],[B,HW,1]
         var.update(ret)
-        depth = var.depth
-        confidence = var.confidence
         return var
 
     def compute_loss(self,opt,var,mode=None):
@@ -540,22 +545,23 @@ class Graph(base.Graph):
         near = torch.ones_like(depth,device=opt.device)
         far = torch.ones_like(depth,device=opt.device)
         #condition 2
-        condi2 = confidence[..., 0] == 2
+        condi2 = torch.tensor(confidence[..., 0] == 2 , device = opt.device)
+        print(" condi2 ", condi2)
+        print(" condi2 sum ", condi2.sum())
         print("!!!!!!!!! near shape : ",near.shape)
         print("!!!!!!!!! condi2 shape : ",condi2.shape)
         print("!!!!!!!!! depth shape : ",depth.shape)
         print("!!!!!!!!! near[condi2] shape : ",near[condi2].shape)
         print("!!!!!!!!! depth[condi2] shape : ",depth[condi2].shape)
-        print("!!!!!!!!! torch.clamp(depth[condi2]-0.3 ,min=0) shape : ",torch.clamp(depth[condi2]-0.3 ,min=0).shape)
+        # print("!!!!!!!!! torch.clamp(depth[condi2]-0.3 ,min=0) shape : ",torch.clamp(depth[condi2]-0.3 ,min=0).shape)
 
         near[condi2]= torch.clamp(depth[condi2]-0.3 ,min=0)
         far[condi2] = depth[condi2]+0.3
-
-        condi1 = confidence[..., 0] == 1
+        condi1 = torch.tensor(confidence[..., 0] == 1, device = opt.device)
         near[condi1] = torch.clamp(depth[condi1]-0.8 ,min=0)
         far[condi1] = depth[condi1]+0.8
 
-        condi0 = confidence[..., 0] == 0
+        condi0 = torch.tensor(confidence[..., 0] == 0, device = opt.device)
         near[condi0]= torch.clamp(depth[condi0]-0.3,max=4)
         far[condi0] = torch.clamp(depth[condi0]+0.3,min=depth_max)
         return near[...,0],far[...,0]  #[B,H*W]
@@ -568,13 +574,13 @@ class Graph(base.Graph):
         rand_samples += torch.arange(opt.nerf.sample_intvs, device=opt.device)[None, None,:,None].float()  # [B,HW,N,1]
 
         if depth is not None and confidence is not None: # [train_num,H,W]
-            print("11#########depth shape, confi shape : ", depth.shape, '  ', confidence.shape)
-            print("batch size : ",batch_size)
-            print("num_rays  ",num_rays)
-            print("ray_idx ", ray_idx)
-            print("ray_idx.shape ", ray_idx.shape)
+            # print("11#########depth shape, confi shape : ", depth.shape, '  ', confidence.shape)
+            # print("batch size : ",batch_size)
+            # print("num_rays  ",num_rays)
+            # print("ray_idx ", ray_idx)
+            # print("ray_idx.shape ", ray_idx.shape)
 
-            print("idx shape :" , idx.shape)
+            # print("idx shape :" , idx.shape)
             depth = depth[idx,:,:].view(batch_size,-1) #[B,H*W]
             # depth = depth[:,ray_idx]
             # depth = depth.unsqueeze(-1)

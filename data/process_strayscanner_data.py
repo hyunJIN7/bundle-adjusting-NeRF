@@ -22,6 +22,8 @@ MAX_DEPTH = 20.0
 # python data/process_strayscanner_data.py --basedir ./data/strayscanner/computer
 # python data/process_strayscanner_data.py --basedir ./data/strayscanner/dinosaur
 # python data/process_strayscanner_data.py --basedir ./data/strayscanner/xyz
+# python data/process_strayscanner_data.py --basedir ./data/strayscanner/xyz2 --num_train=200
+# python data/process_strayscanner_data.py --basedir ./data/strayscanner/MPIL01 --num_train=200
 def config_parser():
     import configargparse
     parser = configargparse.ArgumentParser()
