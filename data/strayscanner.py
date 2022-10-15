@@ -56,6 +56,7 @@ class Dataset(base.Dataset):
             self.cameras = self.preload_threading(opt,self.get_camera,data_str="cameras")
             self.gt_depth = self.preload_threading(opt, self.get_depth,data_str="depth")
             self.confidence = self.preload_threading(opt, self.get_confidence, data_str="confidence")
+            self.bound = self.preload_threading(opt, self.get_bound, data_str="bound")
 
 
         ## for GT data(optitrack)
@@ -122,13 +123,17 @@ class Dataset(base.Dataset):
         gt_depth = self.gt_depth[idx] if opt.data.preload else self.get_depth(opt,idx)
         intr,pose = self.cameras[idx] if opt.data.preload else self.get_camera(opt,idx) #(3,4)
         intr,pose = self.preprocess_camera(opt,intr,pose,aug=aug)
+
+        near,far = self.bound[idx] if opt.data.preload else self.get_bound(opt,idx) #(3,4)
+
         sample.update(
             image=image,
-            # depth=depth,
             confidence=confidence,
             gt_depth=gt_depth,
             intr=intr,
             pose=pose,
+            gt_near = near,
+            gt_far = far
         )
         return sample
 
@@ -142,6 +147,10 @@ class Dataset(base.Dataset):
         depth_fname = "{}.npy".format(str(int(self.frames[idx][1])).zfill(5))
         depth_fname = "{}/depth_{}/{}".format(self.path,self.split,depth_fname)
         depth = torch.from_numpy(np.load(depth_fname)).float()
+
+        confi_fname = "{}.npy".format(str(int(self.frames[idx][1])).zfill(5))
+        confi_fname = "{}/confidence_{}/{}".format(self.path, self.split, confi_fname)
+        confidence = torch.from_numpy(np.load(confi_fname))
         return depth
 
 
@@ -150,6 +159,18 @@ class Dataset(base.Dataset):
         confi_fname = "{}/confidence_{}/{}".format(self.path,self.split,confi_fname)
         confidence = torch.from_numpy(np.load(confi_fname))
         return confidence
+    def get_bound(self,opt,idx):
+        near_fname = "{}.npy".format(str(int(self.frames[idx][1])).zfill(5))
+        near_fname = "{}/near_{}/{}".format(self.path,self.split,near_fname)
+        near = torch.from_numpy(np.load(near_fname))
+
+        far_fname = "{}.npy".format(str(int(self.frames[idx][1])).zfill(5))
+        far_fname = "{}/near_{}/{}".format(self.path, self.split, far_fname)
+        far = torch.from_numpy(np.load(far_fname))
+
+        return near,far
+
+
 
     def get_camera(self,opt,idx):
         intrinsics = self.intr

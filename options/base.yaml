@@ -49,7 +49,7 @@ tb:                                                         # TensorBoard option
     num_images: [4,8]                                       # number of (tiled) images to visualize in TensorBoard
 visdom:                                                     # Visdom options
     server: localhost                                       # server to host Visdom
-    port: 9000                                              # port number for Visdom
+    port: 9003                                              # port number for Visdom
 
 freq:                                                       # periodic actions during training
     scalar: 200                                             # log losses and scalar states (every N iterations)

@@ -1,6 +1,6 @@
 import csv
 # import pickle
-# import torch
+import torch
 # import torch.nn as nn
 # import torch.nn.functional as F
 import os
@@ -19,11 +19,11 @@ DEPTH_HEIGHT = 192
 MAX_DEPTH = 20.0
 
 #  conda activate StrayVisualizer-main
-# python data/process_strayscanner_data.py --basedir ./data/strayscanner/computer
+# python data/process_strayscanner_data.py --basedir ./data/strayscanner/computer01  --num_train=200
 # python data/process_strayscanner_data.py --basedir ./data/strayscanner/dinosaur
 # python data/process_strayscanner_data.py --basedir ./data/strayscanner/xyz
 # python data/process_strayscanner_data.py --basedir ./data/strayscanner/xyz2 --num_train=200
-# python data/process_strayscanner_data.py --basedir ./data/strayscanner/MPIL01 --num_train=200
+# python data/process_strayscanner_data.py --basedir ./data/strayscanner/MPIL01_130 --num_train=130
 def config_parser():
     import configargparse
     parser = configargparse.ArgumentParser()
@@ -34,6 +34,11 @@ def config_parser():
                         help='number of train data')
     parser.add_argument("--num_test", type=int, default=20,
                         help='number of train data')
+
+    parser.add_argument("--near_range", type=int, default=2,
+                        help='near near range')
+    parser.add_argument("--far_range", type=int, default=6,
+                        help='far near range')
     return parser
 
 # def load_depth(path, confidence=None):
@@ -62,9 +67,13 @@ def process_stray_scanner(args, data,split='train'):
     rgb_path = "{}/rgb_{}".format(args.basedir, split)
     depth_path = "{}/depth_{}".format(args.basedir, split)
     confidence_path = "{}/confidence_{}".format(args.basedir, split)
+    near_path = "{}/near_bound_{}".format(args.basedir, split)
+    far_path = "{}/far_bound_{}".format(args.basedir, split)
     make_dir(rgb_path)
     make_dir(depth_path)
     make_dir(confidence_path)
+    make_dir(near_path)
+    make_dir(far_path)
 
     n = data['odometry'].shape[0]
     num_train = args.num_train
@@ -78,10 +87,6 @@ def process_stray_scanner(args, data,split='train'):
     val_index = train_val_index[-num_val:]
     test_index = np.delete(all_index,train_val_index)
     test_index = np.random.choice(test_index,num_test,replace=False)
-    # print("train ", train_index)
-    # print("val ", val_index)
-    # print("test_index ", test_index)
-    # print("train_val_index ", train_val_index)
 
 
     # print("list rgb ",data['rgb'])
@@ -111,19 +116,50 @@ def process_stray_scanner(args, data,split='train'):
         confidences = confidences[train_val_index]
         poses = poses[train_val_index]
 
+    nears, fars = precompute_depth_sampling(args.near_range,args.far_range, depths, confidences) #(N,H,W)
 
     pose_fname = "{}/odometry_{}.csv".format(args.basedir, split)
     pose_file = open(pose_fname,'w')#,newline=','
     wr = csv.writer(pose_file)
-    for i, (rgb, depth, confidence, pose) in enumerate(zip(rgbs, depths,confidences,poses)):
+    for i, (rgb, depth, confidence, pose,near,far) in enumerate(zip(rgbs, depths,confidences,poses,nears,fars)):
         #pose :  timestamp, frame, x, y, z, qx, qy, qz, qw
         cv2.imwrite(os.path.join(rgb_path, str(int(pose[1])).zfill(5) + '.png'), rgb)
         np.save(os.path.join(depth_path, str(int(pose[1])).zfill(5) + '.npy'), depth)
         np.save(os.path.join(confidence_path, str(int(pose[1])).zfill(5) + '.npy'), confidence)
-        # cv2.imwrite(os.path.join(depth_path, str(int(pose[1])).zfill(5) + '.npy'), depth)
-        # cv2.imwrite(os.path.join(confidence_path, str(int(pose[1])).zfill(5) + '.npy'), confidence)
+        np.save(os.path.join(near_path, str(int(pose[1])).zfill(5) + '.npy'), near)
+        np.save(os.path.join(far_path, str(int(pose[1])).zfill(5) + '.npy'), far)
         wr.writerow(pose)
     pose_file.close()
+
+
+
+def precompute_depth_sampling(origin_near,origin_far,depth,confidence):
+    #TODO : 지금 기준은 confidence , 성능 구리면 depth 값 기준으로도 더 조건 추가 4.5 이상이면 해보고 별로면
+    depth_min, depth_max = origin_near, origin_far
+    # [N,H,W]
+    depth = torch.tensor(depth)
+    confidence = torch.tensor(confidence)
+
+    depth = depth[...,None]  #[N,H,W,1]
+    confidence = confidence[..., None] #[N,H,W,1]
+    near = torch.ones_like(depth) #[N,H,W,1]
+    far = torch.ones_like(depth)
+
+    condi2 = confidence[..., 0] == 2 #[N,H,W]
+    near[condi2]= torch.clamp(depth[condi2]-0.3 ,min=0)
+    far[condi2] = depth[condi2]+0.3
+
+    condi1 = confidence[..., 0] == 1
+    near[condi1] = torch.clamp(depth[condi1]-0.8 ,min=0)
+    far[condi1] = depth[condi1]+0.8
+
+    condi0 = confidence[..., 0] == 0
+    near[condi0]= torch.clamp(depth[condi0]-0.3,max=4)
+    far[condi0] = torch.clamp(depth[condi0]+0.3,min=depth_max)
+
+    test_near , test_far = near[...,0],far[...,0]
+    test_depth = depth[...,0]
+    return near[...,0],far[...,0]  #[B,H*W]
 
 
 def main(args):
@@ -166,7 +202,7 @@ def main(args):
     data['depth']=depths
     data['rgb']=rgbs
 
-    split = ['train', 'val', 'test','train_val']
+    split = ['train', 'val', 'test'] # conda install pytorch torchvision torchaudio cudatoolkit=11.3 -c pytorch
     for mode in split:
         process_stray_scanner(args,data,mode)
 

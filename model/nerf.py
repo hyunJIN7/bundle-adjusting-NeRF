@@ -443,16 +443,17 @@ class Graph(base.Graph):
         depth, confidence = None,None
         if opt.depth.use_depth :
             depth, confidence = self.get_gt_depth(opt, var, mode=mode)
+            near,far = self.get_bound(opt,var,mode=mode)
 
         # render images
         if opt.nerf.rand_rays and mode in ["train","test-optim"]:
             # sample random rays for optimization
             var.ray_idx = torch.randperm(opt.H*opt.W,device=opt.device)[:opt.nerf.rand_rays//batch_size]
-            ret = self.render(opt,pose,intr=var.intr,ray_idx=var.ray_idx,mode=mode,idx=var.idx,depth=depth,confidence=confidence) # [B,N,3],[B,N,1]
+            ret = self.render(opt,pose,intr=var.intr,ray_idx=var.ray_idx,mode=mode,idx=var.idx,depth=depth,confidence=confidence,near=near,far=far) # [B,N,3],[B,N,1]
         else:
             # render full image (process in slices)
-            ret = self.render_by_slices(opt,pose,intr=var.intr,mode=mode,idx=var.idx,depth=depth,confidence=confidence) if opt.nerf.rand_rays else \
-                  self.render(opt,pose,intr=var.intr,mode=mode,idx=var.idx,depth=depth,confidence=confidence) # [B,HW,3],[B,HW,1]
+            ret = self.render_by_slices(opt,pose,intr=var.intr,mode=mode,idx=var.idx,depth=depth,confidence=confidence,near=near,far=far) if opt.nerf.rand_rays else \
+                  self.render(opt,pose,intr=var.intr,mode=mode,idx=var.idx,depth=depth,confidence=confidence,near=near,far=far) # [B,HW,3],[B,HW,1]
         var.update(ret)
         return var
 
@@ -490,9 +491,11 @@ class Graph(base.Graph):
         return var.pose
 
     def get_gt_depth(self, opt, var, mode=None):
-        return var.gt_depth, var.confidence
+        return var.gt_near, var.gt_far
+    def get_bound(self, opt, var, mode=None):
+        return var.gt_near, var.gt_confidence
 
-    def render(self,opt,pose,intr=None,ray_idx=None,mode=None,idx=None,depth=None,confidence=None):
+    def render(self,opt,pose,intr=None,ray_idx=None,mode=None,idx=None,depth=None,confidence=None,near=None,far=None):
         batch_size = len(pose)
         center,ray = camera.get_center_and_ray(opt,pose,intr=intr) # [B,HW,3]
         while ray.isnan().any(): # TODO: weird bug, ray becomes NaN arbitrarily if batch_size>1, not deterministic reproducible
@@ -506,7 +509,7 @@ class Graph(base.Graph):
         # render with main MLP
         # print("**** mode :",mode)
         # print("**** ")
-        depth_samples = self.sample_depth(opt,batch_size,num_rays=ray.shape[1], idx=idx,ray_idx=ray_idx,depth=depth,confidence=confidence) # [B,HW,N,1] , idx : batch, ray_idx : ray num
+        depth_samples = self.sample_depth(opt,batch_size,num_rays=ray.shape[1], idx=idx,ray_idx=ray_idx,depth=depth,confidence=confidence,near=near,far=far) # [B,HW,N,1] , idx : batch, ray_idx : ray num
         rgb_samples,density_samples = self.nerf.forward_samples(opt,center,ray,depth_samples,mode=mode)
         rgb,depth,opacity,prob = self.nerf.composite(opt,ray,rgb_samples,density_samples,depth_samples)
         ret = edict(rgb=rgb,depth=depth,opacity=opacity,prob=prob,depth_samples=depth_samples) # [B,HW,K]
@@ -523,49 +526,83 @@ class Graph(base.Graph):
             ret.update(rgb_fine=rgb_fine,depth_fine=depth_fine,opacity_fine=opacity_fine,prob=prob) # [B,HW,K]
         return ret
 
-    def render_by_slices(self,opt,pose,intr=None,mode=None,idx=None,depth=None,confidence=None):
+    def render_by_slices(self,opt,pose,intr=None,mode=None,idx=None,depth=None,confidence=None,near=None,far=None):
         ret_all = edict(rgb=[],depth=[],opacity=[],prob=[],depth_samples=[])
         if opt.nerf.fine_sampling:
             ret_all.update(rgb_fine=[],depth_fine=[],opacity_fine=[], prob_fine = [])
         # render the image by slices for memory considerations
         for c in range(0,opt.H*opt.W,opt.nerf.rand_rays):
             ray_idx = torch.arange(c,min(c+opt.nerf.rand_rays,opt.H*opt.W),device=opt.device)
-            ret = self.render(opt,pose,intr=intr,ray_idx=ray_idx,mode=mode,idx=idx,depth=depth,confidence=confidence) # [B,R,3],[B,R,1]
+            ret = self.render(opt,pose,intr=intr,ray_idx=ray_idx,mode=mode,idx=idx,depth=depth,confidence=confidence,near=near,far=far) # [B,R,3],[B,R,1]
             for k in ret: ret_all[k].append(ret[k])
         # group all slices of images
         for k in ret_all: ret_all[k] = torch.cat(ret_all[k],dim=1)
         return ret_all
 
+    # def precompute_depth_sampling(self,opt,depth,confidence):
+    #     #TODO : 지금 기준은 confidence , 성능 구리면 depth 값 기준으로도 더 조건 추가 4.5 이상이면 해보고 별로면
+    #     depth_min, depth_max = opt.nerf.depth.range
+    #     # [B,H*W]
+    #     depth = depth[...,None]
+    #     confidence = confidence[..., None]
+    #     near = torch.ones_like(depth,device=opt.device)
+    #     far = torch.ones_like(depth,device=opt.device)
+    #     # print("##### confidence shape ",confidence.shape)
+    #     #condition 2
+    #     # condi2 = torch.tensor( confidence[..., 0] == 2 , device = opt.device)
+    #     condi2 = confidence[..., 0] == 2
+    #     test = near[0,:,0]
+    #
+    #     print("test ",test.shape)
+    #     print("!!!!!!!!! near shape : ",near.shape)
+    #     print("!!!!!!!!! condi2 shape : ",condi2.shape)
+    #     print("!!!!!!!!! depth shape : ",depth.shape)
+    #     print("!! depth ", depth)
+    #     print("!! condi2 ", condi2)
+    #     print("!!!!!!!!! depth[condi2] shape : ",depth[condi2].shape)
+    #     print("!!!!!!!!! near[condi2] shape : ",near[condi2].shape)
+    #     print("!!!!!!!!! torch.clamp(depth[condi2]-0.3 ,min=0) shape : ",torch.clamp(depth[condi2]-0.3 ,min=0).shape)
+    #     print("!!!!!!!!! depth : ",depth)
+    #
+    #     # print("condi2 ",condi2)
+    #     near[condi2]= torch.clamp(depth[condi2]-0.3 ,min=0)
+    #     far[condi2] = depth[condi2]+0.3
+    #     min = depth[condi2]
+    #
+    #
+    #     condi1 = torch.tensor(confidence[..., 0] == 1, device = opt.device)
+    #     near[condi1] = torch.clamp(depth[condi1]-0.8 ,min=0)
+    #     far[condi1] = depth[condi1]+0.8
+    #
+    #     condi0 = torch.tensor(confidence[..., 0] == 0, device = opt.device)
+    #     near[condi0]= torch.clamp(depth[condi0]-0.3,max=4)
+    #     far[condi0] = torch.clamp(depth[condi0]+0.3,min=depth_max)
+    #     return near[...,0],far[...,0]  #[B,H*W]
+
     def precompute_depth_sampling(self,opt,depth,confidence):
         #TODO : 지금 기준은 confidence , 성능 구리면 depth 값 기준으로도 더 조건 추가 4.5 이상이면 해보고 별로면
         depth_min, depth_max = opt.nerf.depth.range
         # [B,H*W]
-        depth = depth[...,None]
-        confidence = confidence[..., None]
+        # depth = depth[...,None]
+        # confidence = confidence[..., None]
         near = torch.ones_like(depth,device=opt.device)
         far = torch.ones_like(depth,device=opt.device)
-        print("##### confidence shape ",confidence.shape)
-        #condition 2
-        condi2 = torch.tensor(confidence[..., 0] == 2 , device = opt.device)
-        print("!!!!!!!!! near shape : ",near.shape)
-        print("!!!!!!!!! condi2 shape : ",condi2.shape)
-        print("!!!!!!!!! depth shape : ",depth.shape)
-        print("!!!!!!!!! near[condi2] shape : ",near[condi2].shape)
-        print("!!!!!!!!! depth[condi2] shape : ",depth[condi2].shape)
-        # print("!!!!!!!!! torch.clamp(depth[condi2]-0.3 ,min=0) shape : ",torch.clamp(depth[condi2]-0.3 ,min=0).shape)
 
-        near[condi2]= torch.clamp(depth[condi2]-0.3 ,min=0)
-        far[condi2] = depth[condi2]+0.3
-        condi1 = torch.tensor(confidence[..., 0] == 1, device = opt.device)
-        near[condi1] = torch.clamp(depth[condi1]-0.8 ,min=0)
-        far[condi1] = depth[condi1]+0.8
+        for i in range(depth.shape[0]):
+            for j in range (depth.shape[1]):
+                if confidence[i][j] == 2 :
+                    near[i][j] = torch.clamp(depth[i][j]-0.3 ,min=0)
+                    far[i][j] = depth[i][j] + 0.3
+                elif confidence[i][j] == 1 :
+                    near[i][j] = torch.clamp(depth[i][j] - 0.6, min=0)
+                    far[i][j] = depth[i][j] + 0.6
+                else:
+                    near[i][j] = torch.clamp(depth[i][j]-0.3,max=4)
+                    far[i][j] = torch.clamp(depth[i][j]+0.3,min=depth_max)
+        return near,far  #[B,H*W]
 
-        condi0 = torch.tensor(confidence[..., 0] == 0, device = opt.device)
-        near[condi0]= torch.clamp(depth[condi0]-0.3,max=4)
-        far[condi0] = torch.clamp(depth[condi0]+0.3,min=depth_max)
-        return near[...,0],far[...,0]  #[B,H*W]
 
-    def sample_depth(self,opt,batch_size,num_rays=None,idx=None,ray_idx=None,depth=None,confidence=None):
+    def sample_depth(self,opt,batch_size,num_rays=None,idx=None,ray_idx=None,depth=None,confidence=None,near=None,far=None):
         near,far = opt.nerf.depth.range
         # sample_intvs : sampling point num , idx : batch_num
         num_rays = num_rays or opt.H * opt.W
@@ -573,20 +610,15 @@ class Graph(base.Graph):
         rand_samples += torch.arange(opt.nerf.sample_intvs, device=opt.device)[None, None,:,None].float()  # [B,HW,N,1]
 
         if depth is not None and confidence is not None: # [train_num,H,W]
-            # print("11#########depth shape, confi shape : ", depth.shape, '  ', confidence.shape)
-            # print("batch size : ",batch_size)
-            # print("num_rays  ",num_rays)
-            # print("ray_idx ", ray_idx)
-            # print("ray_idx.shape ", ray_idx.shape)
-
-            # print("idx shape :" , idx.shape)
-            depth = depth[idx,:,:].view(batch_size,-1) #[B,H*W]
+            depth = depth[idx,:,:].view(batch_size,-1)  #[B,H*W]
             # depth = depth[:,ray_idx]
             # depth = depth.unsqueeze(-1)
             # depth = depth.expand_as(rand_samples[...,0])#[B,H*W,N]
             confidence = confidence[idx,:,:].view(batch_size,-1) #[B,H*W]
-
-            near,far = self.precompute_depth_sampling(opt,depth, confidence)  # [B,H*W]
+            near = near[idx,:,:].view(batch_size,-1)
+            far = far[idx,:,:].view(batch_size,-1)
+            # near,far = self.precompute_depth_sampling(opt,depth, confidence)  # [B,H*W]
+            # print("33333333333333  near shape ", near.shape)
             near, far = near[:,ray_idx],far[:, ray_idx]
             near, far = near.unsqueeze(-1), far.unsqueeze(-1)
             near, far = near.expand_as(rand_samples[...,0]),  far.expand_as(rand_samples[...,0])  #[B,H*W,N]

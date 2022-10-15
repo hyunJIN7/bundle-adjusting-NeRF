@@ -1,4 +1,4 @@
-name: barf-env
+name: barf-env2
 channels:
   - conda-forge
   - pytorch
@@ -20,6 +20,7 @@ dependencies:
   - pyyaml
   - pip
   - gdown
+  - pillow==9.0.1
   - pip:
     - lpips
     - pymcubes

@@ -124,7 +124,13 @@ class Dataset(base.Dataset):
         image = self.preprocess_image(opt,image,aug=aug)
         intr,pose = self.cameras[idx] if opt.data.preload else self.get_camera(opt,idx)
         intr,pose = self.preprocess_camera(opt,intr,pose,aug=aug)
+
+        confidence = self.confidence[idx] if opt.data.preload else self.get_confidence(opt,idx)
+        gt_depth = self.gt_depth[idx] if opt.data.preload else self.get_depth(opt,idx)
+
         sample.update(
+            confidence=confidence,
+            gt_depth=gt_depth,
             image=image,
             intr=intr,
             pose=pose,  #shape (3,4)
