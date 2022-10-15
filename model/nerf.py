@@ -441,6 +441,7 @@ class Graph(base.Graph):
         pose = self.get_pose(opt,var,mode=mode)
 
         depth, confidence = None,None
+        near,far = None,None
         if opt.depth.use_depth :
             depth, confidence = self.get_gt_depth(opt, var, mode=mode)
             near,far = self.get_bound(opt,var,mode=mode)
@@ -608,7 +609,7 @@ class Graph(base.Graph):
         rand_samples = torch.rand(batch_size,num_rays,opt.nerf.sample_intvs,1,device=opt.device) if opt.nerf.sample_stratified else 0.5
         rand_samples += torch.arange(opt.nerf.sample_intvs, device=opt.device)[None, None,:,None].float()  # [B,HW,N,1]
 
-        if depth is not None and confidence is not None: # [train_num,H,W]
+        if near is not None and far is not None: # [train_num,H,W]
             depth = depth[idx,:,:].view(batch_size,-1)  #[B,H*W]
             # depth = depth[:,ray_idx]
             # depth = depth.unsqueeze(-1)
@@ -622,6 +623,8 @@ class Graph(base.Graph):
             near, far = near.unsqueeze(-1), far.unsqueeze(-1)
             near, far = near.expand_as(rand_samples[...,0]),  far.expand_as(rand_samples[...,0])  #[B,H*W,N]
             near, far = near.unsqueeze(-1), far.unsqueeze(-1)  # [B,H*W,N,1]
+        else:
+            near,far = opt.nerf.depth.range
 
         # depth_samples = rand_samples/opt.nerf.sample_intvs * (depth_max-depth_min) + depth_min # [B,HW,N,1] [1,1024,128,1]
         depth_samples = rand_samples/opt.nerf.sample_intvs * (far - near) + near # [B,HW,N,1] [1,1024,128,1]
