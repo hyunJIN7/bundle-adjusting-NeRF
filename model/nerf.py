@@ -490,10 +490,10 @@ class Graph(base.Graph):
     def get_pose(self,opt,var,mode=None):
         return var.pose
 
-    def get_gt_depth(self, opt, var, mode=None):
-        return var.gt_near, var.gt_far
     def get_bound(self, opt, var, mode=None):
-        return var.gt_near, var.gt_confidence
+        return var.gt_near, var.gt_far
+    def get_gt_depth(self, opt, var, mode=None):
+        return var.gt_depth, var.confidence
 
     def render(self,opt,pose,intr=None,ray_idx=None,mode=None,idx=None,depth=None,confidence=None,near=None,far=None):
         batch_size = len(pose)
