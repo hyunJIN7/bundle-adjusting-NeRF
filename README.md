@@ -57,11 +57,15 @@ For convenience, you can download them with the following script: (under this re
 
 
 #### BARF DATA
-ios_logger frame [right,up,backward]
-BARF 각 데이터.py 하단에 parse_raw_camera() 거치면 [right,down,forward]로 바꿈. 
+- ios_logger frame [right,up,backward]
+- BARF 각 데이터.py 하단에 parse_raw_camera() 거치면 [right,down,forward]로 바꿈. 
+
+- strayscanner frame [right,down,forward] 라서 변환 필요 없음.
+
 (인풋 데이터 프레임은 [right,up,backward]로 받아서 내부에서 [right, up, backwards]로 전환 후 사용함)
 BARF의 the coordinate system of this function output would be [right, up, backwards]
 ![KakaoTalk_20220406_111550975](https://user-images.githubusercontent.com/35680342/161882313-513b9abc-22f8-4c8b-a300-c8959cccff91.jpg)
+![image](https://user-images.githubusercontent.com/35680342/195963443-62e8de25-dfbc-4905-9e51-0be3f33c3ea8.png)
 
 --------------------------------------
 
