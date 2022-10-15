@@ -24,8 +24,7 @@ class Dataset(base.Dataset):
         super().__init__(opt,split)
         self.root = opt.data.root or "data/iphone"
         self.path = "{}/{}".format(self.root,opt.data.scene)
-
-        self.path_image = "{}/rgb_train_val".format(self.path) if split != "test" else "{}/rgb_test".format(self.path)
+        self.path_image = "{}/rgb_{}".format(self.path,split)
         self.list = sorted(os.listdir(self.path_image), key=lambda f: int(f.split(".")[0]))  #이미지
 
         intrin_file = os.path.join(self.path, 'camera_matrix.csv')
@@ -36,7 +35,7 @@ class Dataset(base.Dataset):
         intrinsics[1,:] = intrinsics[1,:] / (1920/self.raw_W)
         self.intr = intrinsics
 
-        pose_path = "{}/odometry_train_val.csv".format(self.path) if split != "test" else "{}/odometry_{}.csv".format(self.path, split)
+        pose_path = "{}/odometry_{}.csv".format(self.path,split)
         # pose_path = os.path.join('./', pose_path)
         assert os.path.isfile(pose_path), "pose info:{} not found".format(pose_path)
         odometry = np.loadtxt(pose_path, delimiter=',')#, skiprows=1
@@ -71,20 +70,28 @@ class Dataset(base.Dataset):
         #     self.opti_pose = cam_gt_pose
         # else: self.opti_pose = self.cam_pose
 
-
-        if subset:
-            self.list = self.list[:subset] # val 4개만
-            self.cam_pose = self.cam_pose[:subset]
-
         # preload dataset
         if opt.data.preload:
             self.images = self.preload_threading(opt, self.get_image)
-
+            self.cameras = self.preload_threading(opt,self.get_camera,data_str="cameras")
+            self.gt_depth = self.preload_threading(opt, self.get_depth,data_str="depth")
+            self.confidence = self.preload_threading(opt, self.get_confidence, data_str="confidence")
 
     def prefetch_all_data(self,opt):
         assert(not opt.data.augment)
         # pre-iterate through all samples and group together
         self.all = torch.utils.data._utils.collate.default_collate([s for s in self])
+
+    def get_all_depth(self,opt):
+        depth = torch.stack([torch.tensor(f ,dtype=torch.float32) for f in self.depth])
+        confidence = torch.stack([torch.tensor(f, dtype=torch.float32) for f in self.confidence])
+        return depth,confidence
+
+    #get_all_gt_camera_poses
+    def get_all_gt_depth(self,opt): # optitrack pose load
+        depth = torch.stack([torch.tensor(f, dtype=torch.float32) for f in self.depth])
+        return depth
+
 
     def get_all_camera_poses(self,opt): #기본 train할때 여기 접근해서 가져오고, data 로드할때 여기 접근
         if self.split == 'test':
@@ -136,10 +143,23 @@ class Dataset(base.Dataset):
             pose = self.parse_raw_camera(opt, pose_raw)
         else: pose = camera.pose(t=torch.zeros(3))
         return intr,pose
+    def get_depth(self,opt,idx):
+        depth_fname = "{}.npy".format(str(int(self.frames[idx][1])).zfill(5))
+        depth_fname = "{}/depth_{}/{}".format(self.path,self.split,depth_fname)
+        depth = torch.from_numpy(np.load(depth_fname)).float()
+        return depth
+
+
+    def get_confidence(self,opt,idx):
+        confi_fname = "{}.npy".format(str(int(self.frames[idx][1])).zfill(5))
+        confi_fname = "{}/confidence_{}/{}".format(self.path,self.split,confi_fname)
+        confidence = torch.from_numpy(np.load(confi_fname))
+        return confidence
 
     # [right, forward, up]
     def parse_raw_camera(self,opt,pose_raw):
-        pose_flip = camera.pose(R=torch.diag(torch.tensor([1,-1,-1])))
+        # pose_flip = camera.pose(R=torch.diag(torch.tensor([1,-1,-1])))
+        pose_flip = camera.pose(R=torch.diag(torch.tensor([1,1,1])))
         pose = camera.pose.compose([pose_flip,pose_raw[:3]])
         pose = camera.pose.invert(pose)
         return pose

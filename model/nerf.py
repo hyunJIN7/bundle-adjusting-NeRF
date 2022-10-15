@@ -544,10 +544,9 @@ class Graph(base.Graph):
         confidence = confidence[..., None]
         near = torch.ones_like(depth,device=opt.device)
         far = torch.ones_like(depth,device=opt.device)
+        print("##### confidence shape ",confidence.shape)
         #condition 2
         condi2 = torch.tensor(confidence[..., 0] == 2 , device = opt.device)
-        print(" condi2 ", condi2)
-        print(" condi2 sum ", condi2.sum())
         print("!!!!!!!!! near shape : ",near.shape)
         print("!!!!!!!!! condi2 shape : ",condi2.shape)
         print("!!!!!!!!! depth shape : ",depth.shape)
