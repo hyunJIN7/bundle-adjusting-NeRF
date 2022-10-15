@@ -76,6 +76,8 @@ class Dataset(base.Dataset):
             self.cameras = self.preload_threading(opt,self.get_camera,data_str="cameras")
             self.gt_depth = self.preload_threading(opt, self.get_depth,data_str="depth")
             self.confidence = self.preload_threading(opt, self.get_confidence, data_str="confidence")
+            self.bound = self.preload_threading(opt, self.get_bound, data_str="bound")
+
 
     def prefetch_all_data(self,opt):
         assert(not opt.data.augment)
@@ -128,12 +130,16 @@ class Dataset(base.Dataset):
         confidence = self.confidence[idx] if opt.data.preload else self.get_confidence(opt,idx)
         gt_depth = self.gt_depth[idx] if opt.data.preload else self.get_depth(opt,idx)
 
+        near,far = self.bound[idx] if opt.data.preload else self.get_bound(opt,idx) #(3,4)
+
         sample.update(
             confidence=confidence,
             gt_depth=gt_depth,
             image=image,
             intr=intr,
             pose=pose,  #shape (3,4)
+            gt_near=near,
+            gt_far=far
         )
         return sample
 
@@ -161,6 +167,18 @@ class Dataset(base.Dataset):
         confi_fname = "{}/confidence_{}/{}".format(self.path,self.split,confi_fname)
         confidence = torch.from_numpy(np.load(confi_fname))
         return confidence
+
+    def get_bound(self,opt,idx):
+        near_fname = "{}.npy".format(str(int(self.frames[idx][1])).zfill(5))
+        near_fname = "{}/near_{}/{}".format(self.path,self.split,near_fname)
+        near = torch.from_numpy(np.load(near_fname))
+
+        far_fname = "{}.npy".format(str(int(self.frames[idx][1])).zfill(5))
+        far_fname = "{}/near_{}/{}".format(self.path, self.split, far_fname)
+        far = torch.from_numpy(np.load(far_fname))
+
+        return near,far
+
 
     # [right, forward, up]
     def parse_raw_camera(self,opt,pose_raw):
