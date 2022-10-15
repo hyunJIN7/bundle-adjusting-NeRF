@@ -611,14 +611,10 @@ class Graph(base.Graph):
 
         if near is not None and far is not None: # [train_num,H,W]
             depth = depth[idx,:,:].view(batch_size,-1)  #[B,H*W]
-            # depth = depth[:,ray_idx]
-            # depth = depth.unsqueeze(-1)
-            # depth = depth.expand_as(rand_samples[...,0])#[B,H*W,N]
             confidence = confidence[idx,:,:].view(batch_size,-1) #[B,H*W]
             near = near[idx,:,:].view(batch_size,-1)
             far = far[idx,:,:].view(batch_size,-1)
-            # near,far = self.precompute_depth_sampling(opt,depth, confidence)  # [B,H*W]
-            # print("33333333333333  near shape ", near.shape)
+
             near, far = near[:,ray_idx],far[:, ray_idx]
             near, far = near.unsqueeze(-1), far.unsqueeze(-1)
             near, far = near.expand_as(rand_samples[...,0]),  far.expand_as(rand_samples[...,0])  #[B,H*W,N]
