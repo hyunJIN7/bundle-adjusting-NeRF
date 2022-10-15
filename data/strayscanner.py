@@ -161,11 +161,11 @@ class Dataset(base.Dataset):
         return confidence
     def get_bound(self,opt,idx):
         near_fname = "{}.npy".format(str(int(self.frames[idx][1])).zfill(5))
-        near_fname = "{}/near_{}/{}".format(self.path,self.split,near_fname)
+        near_fname = "{}/near_bound_{}/{}".format(self.path,self.split,near_fname)
         near = torch.from_numpy(np.load(near_fname))
 
         far_fname = "{}.npy".format(str(int(self.frames[idx][1])).zfill(5))
-        far_fname = "{}/near_{}/{}".format(self.path, self.split, far_fname)
+        far_fname = "{}/far_bound_{}/{}".format(self.path, self.split, far_fname)
         far = torch.from_numpy(np.load(far_fname))
 
         return near,far
