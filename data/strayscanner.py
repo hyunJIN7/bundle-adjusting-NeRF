@@ -57,6 +57,7 @@ class Dataset(base.Dataset):
             self.gt_depth = self.preload_threading(opt, self.get_depth,data_str="depth")
             self.confidence = self.preload_threading(opt, self.get_confidence, data_str="confidence")
             self.bound = self.preload_threading(opt, self.get_bound, data_str="bound")
+            print()
 
 
         ## for GT data(optitrack)

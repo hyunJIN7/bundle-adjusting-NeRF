@@ -603,7 +603,6 @@ class Graph(base.Graph):
 
 
     def sample_depth(self,opt,batch_size,num_rays=None,idx=None,ray_idx=None,depth=None,confidence=None,near=None,far=None):
-        near,far = opt.nerf.depth.range
         # sample_intvs : sampling point num , idx : batch_num
         num_rays = num_rays or opt.H * opt.W
         rand_samples = torch.rand(batch_size,num_rays,opt.nerf.sample_intvs,1,device=opt.device) if opt.nerf.sample_stratified else 0.5
