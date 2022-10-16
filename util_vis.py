@@ -276,6 +276,7 @@ def plot_save_optim_poses(opt, fig, pose, pose_ref=None, path=None, ep=None):
 
 def plot_save_poses(opt, fig, pose, pose_ref=None, path=None, ep=None):
     # get the camera meshes
+    # print("plot_save!!!  pose shape ",pose.shape)
     _, _, cam = get_camera_mesh(pose, depth=opt.visdom.cam_depth)
     cam = cam.numpy()
     if pose_ref is not None:
@@ -286,7 +287,7 @@ def plot_save_poses(opt, fig, pose, pose_ref=None, path=None, ep=None):
     ax1 = fig.add_subplot(121, projection="3d")
     ax2 = fig.add_subplot(122, projection="3d")
 
-    bound = 0.6
+    bound = 6
 
     setup_3D_plot(ax1, elev=-90, azim=-90, lim=edict(x=(-bound, bound), y=(-bound, bound), z=(-bound, bound)))  # x=(-1,1),y=(-1,1),z=(-1,1)
     setup_3D_plot(ax2, elev=0, azim=-90, lim=edict(x=(-bound, bound), y=(-bound, bound), z=(-bound, bound)))

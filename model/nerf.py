@@ -610,11 +610,17 @@ class Graph(base.Graph):
         rand_samples += torch.arange(opt.nerf.sample_intvs, device=opt.device)[None, None,:,None].float()  # [B,HW,N,1]
 
         if near is not None and far is not None: # [train_num,H,W]
-            depth = depth[idx,:,:].view(batch_size,-1)  #[B,H*W]
-            confidence = confidence[idx,:,:].view(batch_size,-1) #[B,H*W]
-            near = near[idx,:,:].view(batch_size,-1)
-            far = far[idx,:,:].view(batch_size,-1)
+            # depth = depth[idx,:,:].view(batch_size,-1)  #[B,H*W]
+            # confidence = confidence[idx,:,:].view(batch_size,-1) #[B,H*W]
 
+            # print("@@@ near shape ", near.shape)
+            # print("@@@ idx ", idx)
+            # print("@@@ idx shape ",idx.shape)
+
+            # near = near[idx,:,:].view(batch_size,-1)
+            # far = far[idx,:,:].view(batch_size,-1)
+            near = near.view(batch_size,-1)
+            far = far.view(batch_size,-1)
             near, far = near[:,ray_idx],far[:, ray_idx]
             near, far = near.unsqueeze(-1), far.unsqueeze(-1)
             near, far = near.expand_as(rand_samples[...,0]),  far.expand_as(rand_samples[...,0])  #[B,H*W,N]
