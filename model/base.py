@@ -214,24 +214,21 @@ class Graph(torch.nn.Module):
         condi1 = target_conf[...,0] != 0
         condi2 = target_depth[...,0] < 4.5
         apply_depth_loss = torch.logical_and(condi1,condi2) #(batch,H*W)
-        print("@@@@@@@@ pred_depth",pred_depth.shape)
-        pred_depth_mean = pred_depth[apply_depth_loss]
-        print("####### pred_depth",pred_depth.shape)
-        print("@@@@@@@@ apply_depth_loss",apply_depth_loss.shape)
 
+
+        pred_depth_mean = pred_depth[apply_depth_loss] # (30278,1,1)
+        # pred_depth : (1,H*W,1) ,
+        # apply_depth_loss : (1,H*W)
 
 
         if pred_depth_mean.shape[0] == 0:
             return torch.zeros((1,), device=pred_depth.device, requires_grad=True)
-        z_vals = z_vals.squeeze(dim=-1) #(1,-,128,1) -> #(1,-,128)
-        weights = weights.squeeze(dim=-1)
-        pre_confi = ((z_vals[apply_depth_loss] - pred_depth_mean.unsqueeze(-1)).pow(2) * weights[apply_depth_loss]).sum(-1) + 1e-5
+        z_vals = z_vals.squeeze(dim=-1) #(1,-,128,1) -> #(1,49152,128)
+        weights = weights.squeeze(dim=-1) # #(1,49152,128)
 
-        print("@@@@@@@@ z_vals",z_vals.shape)
-        print("@@@@@@@@ weights",weights.shape)
-        print("@@@@@@@@ pre_confi",pre_confi.shape)
-
-
+        pre_confi = ((z_vals[apply_depth_loss] - pred_depth_mean).pow(2) * weights[apply_depth_loss]).sum(-1) + 1e-5
+                        # # (30278,128) - # (30278,1,1)
+                        #  pow(2) : (30278,128)
         gt_depth = target_depth.squeeze(dim=-1)[apply_depth_loss]  #(-,1) -> (-)
         cnt_all = target_depth.shape[0] * target_depth.shape[1]
         f = nn.GaussianNLLLoss(eps=0.001)
