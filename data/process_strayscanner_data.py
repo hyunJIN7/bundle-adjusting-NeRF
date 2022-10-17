@@ -20,6 +20,7 @@ MAX_DEPTH = 20.0
 
 #  conda activate StrayVisualizer-main
 # python data/process_strayscanner_data.py --basedir ./data/strayscanner/computer01  --num_train=200
+# python data/process_strayscanner_data.py --basedir ./data/strayscanner/computer01_120  --num_train=120
 # python data/process_strayscanner_data.py --basedir ./data/strayscanner/dinosaur
 # python data/process_strayscanner_data.py --basedir ./data/strayscanner/xyz
 # python data/process_strayscanner_data.py --basedir ./data/strayscanner/xyz2 --num_train=200
