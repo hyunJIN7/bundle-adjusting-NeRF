@@ -21,6 +21,7 @@ MAX_DEPTH = 20.0
 #  conda activate StrayVisualizer-main
 # python data/process_strayscanner_data.py --basedir ./data/strayscanner/computer01  --num_train=200
 # python data/process_strayscanner_data.py --basedir ./data/strayscanner/computer01_120  --num_train=120
+# python data/process_strayscanner_data.py --basedir ./data/strayscanner/computer01_2  --num_train=200 --use_confi0_depth=False
 # python data/process_strayscanner_data.py --basedir ./data/strayscanner/dinosaur
 # python data/process_strayscanner_data.py --basedir ./data/strayscanner/xyz
 # python data/process_strayscanner_data.py --basedir ./data/strayscanner/xyz2 --num_train=200
@@ -40,6 +41,10 @@ def config_parser():
                         help='near near range')
     parser.add_argument("--far_range", type=int, default=6,
                         help='far near range')
+
+    parser.add_argument("--use_confi0_depth", type=bool, default=True,
+                        help='far near range')
+
     return parser
 
 # def load_depth(path, confidence=None):
@@ -155,8 +160,16 @@ def precompute_depth_sampling(origin_near,origin_far,depth,confidence):
     far[condi1] = depth[condi1]+0.8
 
     condi0 = confidence[..., 0] == 0
-    near[condi0]= torch.clamp(depth[condi0]-0.3,max=4)
-    far[condi0] = torch.clamp(depth[condi0]+0.3,min=depth_max)
+
+    if args.use_confi0_depth :
+        # consider depth
+        near[condi0]= torch.clamp(depth[condi0]-0.3,max=4)
+        far[condi0] = torch.clamp(depth[condi0]+0.3,min=depth_max)
+    else:
+        # near = 4
+        print("near 4")
+        near[condi0]= 4 #torch.clamp(depth[condi0]+0.3,min=4)
+        far[condi0] = torch.clamp(depth[condi0]+0.3,min=depth_max)
 
     test_near , test_far = near[...,0],far[...,0]
     test_depth = depth[...,0]
