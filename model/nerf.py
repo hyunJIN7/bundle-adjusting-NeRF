@@ -476,11 +476,9 @@ class Graph(base.Graph):
             loss.render_fine = self.MSE_loss(var.rgb_fine,image)
 
         if opt.depth.use_depth_loss and opt.loss_weight.depth > 0:
-            pred_depth = var.depth.view(batch_size , opt.H*opt.W)  #(batch , H*W, 1)
-            # var.ray_idx
-            depth, confidence = self.get_gt_depth(opt, var, mode=mode) # [batch?,H,W]
-            depth, confidence = depth[var.idx,].view(batch_size,-1), confidence[var.idx,].view(batch_size,-1)  #[batch, H*W]
-            depth, confidence = depth.unsqueeze(-1), confidence.unsqueeze(-1) ##[batch, H*W,1]
+            pred_depth = var.depth.view(batch_size , opt.H*opt.W,1)  #(batch , H*W, 1)
+            depth, confidence = self.get_gt_depth(opt, var, mode=mode) # [batch,H,W]
+            depth, confidence = depth.view(batch_size,opt.H*opt.W,1), confidence.view(batch_size,opt.H*opt.W,1)  #[batch, H*W,1]
             if opt.nerf.rand_rays and mode in ["train","test-optim"]:
                 pred_depth = pred_depth[:,var.ray_idx]
                 depth = depth[:,var.ray_idx]  #gt
@@ -508,8 +506,6 @@ class Graph(base.Graph):
             # convert center/ray representations to NDC
             center,ray = camera.convert_NDC(opt,center,ray,intr=intr)
         # render with main MLP
-        # print("**** mode :",mode)
-        # print("**** ")
         depth_samples = self.sample_depth(opt,batch_size,num_rays=ray.shape[1], idx=idx,ray_idx=ray_idx,depth=depth,confidence=confidence,near=near,far=far) # [B,HW,N,1] , idx : batch, ray_idx : ray num
         rgb_samples,density_samples = self.nerf.forward_samples(opt,center,ray,depth_samples,mode=mode)
         rgb,depth,opacity,prob = self.nerf.composite(opt,ray,rgb_samples,density_samples,depth_samples)
