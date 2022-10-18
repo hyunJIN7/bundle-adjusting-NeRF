@@ -466,6 +466,7 @@ class Graph(base.Graph):
         rendering_weight = var.prob  # (batch, H*W, 128(sample point?),1)
         z_val = var.depth_samples
 
+        print(" 1!! !! image ", image.shape)
         if opt.nerf.rand_rays and mode in ["train","test-optim"]:
             image = image[:,var.ray_idx]
 
@@ -477,17 +478,18 @@ class Graph(base.Graph):
             loss.render_fine = self.MSE_loss(var.rgb_fine,image)
 
         if opt.depth.use_depth_loss and opt.loss_weight.depth > 0:
+            print("!!! var.depth ", var.depth.shape)
             pred_depth = var.depth.view(batch_size , -1,1)  #(batch , H*W, 1)
-            # print("@@@ pred_depth ", var.depth.shape)
+            print("!!! pred_depth ", pred_depth.shape)
             depth, confidence = self.get_gt_depth(opt, var, mode=mode) # [batch,H,W]
-            # var.ray_idx
-            # print("@@@ depth ", depth.shape)
-            # print("@@@ confidence ", confidence.shape)
+            depth,confidence = depth.view(batch_size,-1,1),  confidence.view(batch_size,-1,1)  #(batch , H*W, 1)
+            print("!!! confidence ", confidence.shape)
 
 
-            depth, confidence = depth.view(batch_size,opt.H*opt.W,1), confidence.view(batch_size,opt.H*opt.W,1)  #[batch, H*W,1]
-            if opt.nerf.rand_rays and mode in ["train","test-optim"]:
-                pred_depth = pred_depth[:,var.ray_idx]
+
+            if opt.nerf.rand_rays and mode in ["train","test-optim"]: #pred_depth.shape == depth.shape and
+                if pred_depth.shape[1] != var.ray_idx.shape:
+                    pred_depth = pred_depth[:,var.ray_idx]
                 depth = depth[:,var.ray_idx]  #gt
                 confidence = confidence[:,var.ray_idx]
             loss.depth = self.compute_depth_loss(pred_depth,z_val,rendering_weight ,confidence,  depth)
@@ -762,6 +764,9 @@ class NeRF(torch.nn.Module):
         opacity = prob.sum(dim=2) # [B,HW,1]
         if opt.nerf.setbg_opaque:
             rgb = rgb+opt.data.bgcolor*(1-opacity)
+
+        print("$$ composite rgb ", rgb.shape)
+        print("$$ composite depth ", depth.shape)
         return rgb,depth,opacity,prob # [B,HW,K]
 
     def positional_encoding(self,opt,input,L): # [B,...,N]
