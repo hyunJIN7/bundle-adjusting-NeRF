@@ -466,7 +466,6 @@ class Graph(base.Graph):
         rendering_weight = var.prob  # (batch, H*W, 128(sample point?),1)
         z_val = var.depth_samples
 
-        print(" 1!! !! image ", image.shape)
         if opt.nerf.rand_rays and mode in ["train","test-optim"]:
             image = image[:,var.ray_idx]
 
@@ -478,14 +477,9 @@ class Graph(base.Graph):
             loss.render_fine = self.MSE_loss(var.rgb_fine,image)
 
         if opt.depth.use_depth_loss and opt.loss_weight.depth > 0:
-            print("!!! var.depth ", var.depth.shape)
             pred_depth = var.depth.view(batch_size , -1,1)  #(batch , H*W, 1)
-            print("!!! pred_depth ", pred_depth.shape)
             depth, confidence = self.get_gt_depth(opt, var, mode=mode) # [batch,H,W]
             depth,confidence = depth.view(batch_size,-1,1),  confidence.view(batch_size,-1,1)  #(batch , H*W, 1)
-            print("!!! confidence ", confidence.shape)
-
-
 
             if opt.nerf.rand_rays and mode in ["train","test-optim"]: #pred_depth.shape == depth.shape and
                 if pred_depth.shape[1] != var.ray_idx.shape:
