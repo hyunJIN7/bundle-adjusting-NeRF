@@ -482,7 +482,12 @@ class Graph(base.Graph):
             depth,confidence = depth.view(batch_size,-1,1),  confidence.view(batch_size,-1,1)  #(batch , H*W, 1)
 
             if opt.nerf.rand_rays and mode in ["train","test-optim"]: #pred_depth.shape == depth.shape and
-                if pred_depth.shape[1] != var.ray_idx.shape:
+                if pred_depth.shape[1] != var.ray_idx.shape[0]:
+                    # print("###### shape ddddd ")
+                    # print("@@  pred_depth.shape[1] : " , pred_depth.shape[1])
+                    # print("@@  pred_dept" , pred_depth.shape)
+                    # print("@@ confidence ",confidence.shape)
+                    # print("@@ var.ray_idx shape[0] ",var.ray_idx.shape[0])
                     pred_depth = pred_depth[:,var.ray_idx]
                 depth = depth[:,var.ray_idx]  #gt
                 confidence = confidence[:,var.ray_idx]
