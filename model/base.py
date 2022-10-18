@@ -216,7 +216,7 @@ class Graph(torch.nn.Module):
         apply_depth_loss = torch.logical_and(condi1,condi2) #(batch,H*W)
 
 
-        pred_depth_mean = pred_depth[apply_depth_loss] # (30278,1,1)
+        pred_depth_mean = pred_depth[apply_depth_loss]# (30278,1,1)
         # pred_depth : (1,H*W,1) ,
         # apply_depth_loss : (1,H*W)
 
@@ -232,5 +232,25 @@ class Graph(torch.nn.Module):
         gt_depth = target_depth.squeeze(dim=-1)[apply_depth_loss]  #(-,1) -> (-)
         cnt_all = target_depth.shape[0] * target_depth.shape[1]
         f = nn.GaussianNLLLoss(eps=0.001)
+
+        a = float(gt_depth.shape[0])
+        b = float(cnt_all)
+        pred_depth_mean = pred_depth_mean.squeeze(dim=-1)
+        c = pred_depth_mean
+        d = gt_depth
+        e = pre_confi
+        print("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
+        print("a  ",a)
+        print("b  ",b)
+        print("c shape ",c.shape)
+        print("d shape ",d.shape)
+        print("e shape ",e.shape)
+
+        ff = f(pred_depth_mean, gt_depth, pre_confi)
+        print("f ",f)
+
+
+
+
         return float(gt_depth.shape[0]) / float(cnt_all) * f(pred_depth_mean, gt_depth, pre_confi)
 

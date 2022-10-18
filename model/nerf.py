@@ -758,9 +758,6 @@ class NeRF(torch.nn.Module):
         opacity = prob.sum(dim=2) # [B,HW,1]
         if opt.nerf.setbg_opaque:
             rgb = rgb+opt.data.bgcolor*(1-opacity)
-
-        print("$$ composite rgb ", rgb.shape)
-        print("$$ composite depth ", depth.shape)
         return rgb,depth,opacity,prob # [B,HW,K]
 
     def positional_encoding(self,opt,input,L): # [B,...,N]
