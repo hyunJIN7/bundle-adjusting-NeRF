@@ -6,7 +6,7 @@ import importlib
 import options
 from util import log
 os.environ['CUDA_LAUNCH_BLOCKING'] = "1"
-os.environ["CUDA_VISIBLE_DEVICES"] = "1"
+os.environ["CUDA_VISIBLE_DEVICES"] = "0"
 def main():
 
     log.process(os.getpid())

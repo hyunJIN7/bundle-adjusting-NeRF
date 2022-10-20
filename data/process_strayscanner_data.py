@@ -34,7 +34,7 @@ def config_parser():
 
     parser.add_argument("--basedir", type=str, default='./data/strayscanner/computer',
                         help='input data directory')
-    parser.add_argument("--num_train", type=int, default=130,
+    parser.add_argument("--num_train", type=int, default=120,
                         help='number of train data')
     parser.add_argument("--num_test", type=int, default=20,
                         help='number of train data')
@@ -214,8 +214,7 @@ def main(args):
         rgb = rgb.resize((DEPTH_WIDTH, DEPTH_HEIGHT))
         rgb = np.array(rgb)
         rgbs.append(rgb)
-        skvideo.io.vwrite(os.path.join(rgb_img_path, str(i).zfill(5) + '.jpg'), rgb)
-        # cv2.imwrite(os.path.join(rgb_img_path, str(i).zfill(5) + '.jpg'), rgb)
+        # skvideo.io.vwrite(os.path.join(rgb_img_path, str(i).zfill(5) + '.jpg'), rgb)
 
     data['confidence'] = confidences
     data['depth']=depths
