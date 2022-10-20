@@ -8,14 +8,14 @@ import tqdm
 from easydict import EasyDict as edict
 import matplotlib.pyplot as plt
 import lpips
-
+from scipy.spatial.transform import Rotation
 import util_vis
 import camera
 
 """
 nerf.py의 novel_pose plot 위한 코드 
 """
-# python visualization_novel_view.py --expname cube
+# python visualization_novel_view.py --expname stray
 def config_parser():
     import configargparse
     parser = configargparse.ArgumentParser()
@@ -145,7 +145,32 @@ def novel_view(args):
     # center_pose = poses[idx_center]
     pose_novel = camera.get_novel_view_poses(opt=None,pose_anchor= poses[idx_center], N=30, scale=scale)
 
+
     generate_videos_pose(pose_novel,poses) # novel, pose
+
+
+###################################################3
+    # pose_path = "odometry.csv"
+    # odometry = np.loadtxt(pose_path, delimiter=',',skiprows=1)  # , skiprows=1
+    #
+    # poses = []
+    # i = 0
+    # for line in odometry:  # timestamp, frame(float ex 1.0), x, y, z, qx, qy, qz, qw
+    #     position = line[2:5]
+    #     quaternion = line[5:]
+    #     T_WC = np.eye(4)
+    #     T_WC[:3, :3] = Rotation.from_quat(quaternion).as_matrix()
+    #     T_WC[:3, 3] = position
+    #     # if i % 80 == 0 :
+    #     poses.append(T_WC)
+    #     # i+=1
+    # poses = torch.from_numpy(np.array(poses)).float()
+    # poses2 = poses[:500,:3,]
+    #
+    # print("poses2 shape ", poses2.shape)
+    generate_videos_pose(poses2, poses2)  # novel, pose
+
+
 
 # python visualization_novel_view.py
 if __name__=='__main__':

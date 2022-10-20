@@ -183,7 +183,6 @@ class Dataset(base.Dataset):
 
     # [right, forward, up]
     def parse_raw_camera(self,opt,pose_raw):
-        # pose_flip = camera.pose(R=torch.diag(torch.tensor([1,-1,-1])))   #test
         pose_flip = camera.pose(R=torch.diag(torch.tensor([1,1,1])))
         pose = camera.pose.compose([pose_flip,pose_raw[:3]])
         pose = camera.pose.invert(pose)
