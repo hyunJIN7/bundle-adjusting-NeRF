@@ -29,8 +29,8 @@ class Dataset(base.Dataset):
         assert os.path.isfile(intrin_file), "camera info:{} not found".format(intrin_file)
         intrinsics = np.loadtxt(intrin_file, delimiter=',')
         intrinsics = torch.from_numpy(np.array(intrinsics)).float()
-        intrinsics[0, :] = intrinsics[0, :] / (1920 / self.raw_W)
-        intrinsics[1, :] = intrinsics[1, :] / (1440 / self.raw_H)
+        intrinsics[0, :] = intrinsics[0, :] * float(self.raw_W) / 1920.0
+        intrinsics[1, :] = intrinsics[1, :] * float(self.raw_H) / 1440.0
         self.intr = intrinsics
 
         pose_path = "{}/odometry_{}.csv".format(self.path,split)
@@ -182,7 +182,8 @@ class Dataset(base.Dataset):
 
     # [right, forward, up]
     def parse_raw_camera(self,opt,pose_raw):
-        pose_flip = camera.pose(R=torch.diag(torch.tensor([1,1,1]))) #torch.tensor([1,-1,-1])
+        # pose_flip = camera.pose(R=torch.diag(torch.tensor([1,-1,-1])))   #test
+        pose_flip = camera.pose(R=torch.diag(torch.tensor([1,1,1])))
         pose = camera.pose.compose([pose_flip,pose_raw[:3]])  # [right, down, forward] , pose_raw[:3]=pose_flip=(3,4),(3,4)
         pose = camera.pose.invert(pose)  #아마 c2w->w2c?
         return pose

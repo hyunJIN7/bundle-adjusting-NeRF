@@ -23,9 +23,8 @@ MAX_DEPTH = 20.0
 # python data/process_strayscanner_data.py --basedir ./data/strayscanner/computer01_120  --num_train=120
 # python data/process_strayscanner_data.py --basedir ./data/strayscanner/computer01_2  --num_train=200 --use_confi0_depth=-1
 # python data/process_strayscanner_data.py --basedir ./data/strayscanner/exhibition01  --num_train=120
-# python data/process_strayscanner_data.py --basedir ./data/strayscanner/piano01  --num_train=120
-# python data/process_strayscanner_data.py --basedir ./data/strayscanner/exhibition01  --num_train=120
-
+# python data/process_strayscanner_data.py --num_train=50 --basedir ./data/strayscanner/statue_50
+# python data/process_strayscanner_data.py --basedir ./data/strayscanner/statue_2 --use_confi0_depth=-1
 
 
 def config_parser():
@@ -197,7 +196,7 @@ def main(args):
     video_path = os.path.join(args.basedir, 'rgb.mp4')
     video = skvideo.io.vreader(video_path)
     rgb_img_path = os.path.join(args.basedir, 'rgb')
-    make_dir(rgb_img_path)
+    # make_dir(rgb_img_path)
     for i, (T_WC, rgb) in enumerate(zip(data['odometry'], video)):
         #load confidence
         confidence = load_confidence(os.path.join(args.basedir, 'confidence', f'{i:06}.png'))
