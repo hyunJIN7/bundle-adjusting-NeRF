@@ -29,8 +29,8 @@ class Dataset(base.Dataset):
         assert os.path.isfile(intrin_file), "camera info:{} not found".format(intrin_file)
         intrinsics = np.loadtxt(intrin_file, delimiter=',')
         intrinsics = torch.from_numpy(np.array(intrinsics)).float()
-        intrinsics[1,:] = intrinsics[1,:] / (1440/self.raw_H)
-        intrinsics[0,:] = intrinsics[0,:] / (1920/self.raw_W)
+        intrinsics[0, :] = intrinsics[0, :] / (1920 / self.raw_W)
+        intrinsics[1, :] = intrinsics[1, :] / (1440 / self.raw_H)
         self.intr = intrinsics
 
         pose_path = "{}/odometry_{}.csv".format(self.path,split)
