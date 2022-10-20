@@ -22,7 +22,10 @@ MAX_DEPTH = 20.0
 # python data/process_strayscanner_data.py --basedir ./data/strayscanner/computer01  --num_train=200
 # python data/process_strayscanner_data.py --basedir ./data/strayscanner/computer01_120  --num_train=120
 # python data/process_strayscanner_data.py --basedir ./data/strayscanner/computer01_2  --num_train=200 --use_confi0_depth=-1
-# python data/process_strayscanner_data.py --basedir ./data/strayscanner/exhibition02  --num_train=150
+# python data/process_strayscanner_data.py --basedir ./data/strayscanner/exhibition01  --num_train=120
+# python data/process_strayscanner_data.py --basedir ./data/strayscanner/piano01  --num_train=120
+# python data/process_strayscanner_data.py --basedir ./data/strayscanner/exhibition01  --num_train=120
+
 
 
 def config_parser():
@@ -160,7 +163,7 @@ def precompute_depth_sampling(origin_near,origin_far,depth,confidence):
 
     condi0 = confidence[..., 0] == 0
 
-    if args.use_confi0_depth >0:
+    if args.use_confi0_depth > 0:
         # consider depth
         near[condi0]= torch.clamp(depth[condi0]-0.3,max=4)
         far[condi0] = torch.clamp(depth[condi0]+0.3,min=depth_max)

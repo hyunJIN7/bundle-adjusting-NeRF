@@ -134,9 +134,9 @@ class Model():
         # weigh losses
         for key in loss:
             assert(key in opt.loss_weight)
-            print("~~~~~~loss key ~~~~~~  ", key)
-            print("~~~~~~loss key ~~~~~~  ", loss[key])
-            print("~~~~~~loss key shape~~~~~~  ", loss[key].shape)
+            # print("~~~~~~loss key ~~~~~~  ", key)
+            # print("~~~~~~loss key ~~~~~~  ", loss[key])
+            # print("~~~~~~loss key shape~~~~~~  ", loss[key].shape)
             assert(loss[key].shape==())
             if opt.loss_weight[key] is not None:
                 assert not torch.isinf(loss[key]),"loss {} is Inf".format(key)
