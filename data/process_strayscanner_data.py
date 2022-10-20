@@ -22,10 +22,9 @@ MAX_DEPTH = 20.0
 # python data/process_strayscanner_data.py --basedir ./data/strayscanner/computer01  --num_train=200
 # python data/process_strayscanner_data.py --basedir ./data/strayscanner/computer01_120  --num_train=120
 # python data/process_strayscanner_data.py --basedir ./data/strayscanner/computer01_2  --num_train=200 --use_confi0_depth=-1
-# python data/process_strayscanner_data.py --basedir ./data/strayscanner/dinosaur
-# python data/process_strayscanner_data.py --basedir ./data/strayscanner/xyz
-# python data/process_strayscanner_data.py --basedir ./data/strayscanner/xyz2 --num_train=200
-# python data/process_strayscanner_data.py --basedir ./data/strayscanner/hallway02_120 --num_train=120
+# python data/process_strayscanner_data.py --basedir ./data/strayscanner/exhibition02  --num_train=150
+
+
 def config_parser():
     import configargparse
     parser = configargparse.ArgumentParser()
@@ -129,7 +128,7 @@ def process_stray_scanner(args, data,split='train'):
     wr = csv.writer(pose_file)
     for i, (rgb, depth, confidence, pose,near,far) in enumerate(zip(rgbs, depths,confidences,poses,nears,fars)):
         #pose :  timestamp, frame, x, y, z, qx, qy, qz, qw
-        cv2.imwrite(os.path.join(rgb_path, str(int(pose[1])).zfill(5) + '.png'), rgb)
+        skvideo.io.vwrite(os.path.join(rgb_path, str(int(pose[1])).zfill(5) + '.png'), rgb)
         np.save(os.path.join(depth_path, str(int(pose[1])).zfill(5) + '.npy'), depth)
         np.save(os.path.join(confidence_path, str(int(pose[1])).zfill(5) + '.npy'), confidence)
         np.save(os.path.join(near_path, str(int(pose[1])).zfill(5) + '.npy'), near)
@@ -194,6 +193,8 @@ def main(args):
     depths = []
     video_path = os.path.join(args.basedir, 'rgb.mp4')
     video = skvideo.io.vreader(video_path)
+    rgb_img_path = os.path.join(args.basedir, 'rgb')
+    make_dir(rgb_img_path)
     for i, (T_WC, rgb) in enumerate(zip(data['odometry'], video)):
         #load confidence
         confidence = load_confidence(os.path.join(args.basedir, 'confidence', f'{i:06}.png'))
@@ -210,6 +211,7 @@ def main(args):
         rgb = rgb.resize((DEPTH_WIDTH, DEPTH_HEIGHT))
         rgb = np.array(rgb)
         rgbs.append(rgb)
+        skvideo.io.vwrite(os.path.join(rgb_img_path, str(i).zfill(5) + '.jpg'), rgb)
         # cv2.imwrite(os.path.join(rgb_img_path, str(i).zfill(5) + '.jpg'), rgb)
 
     data['confidence'] = confidences

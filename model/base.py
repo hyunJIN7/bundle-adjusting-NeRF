@@ -134,6 +134,9 @@ class Model():
         # weigh losses
         for key in loss:
             assert(key in opt.loss_weight)
+            print("~~~~~~loss key ~~~~~~  ", key)
+            print("~~~~~~loss key ~~~~~~  ", loss[key])
+            print("~~~~~~loss key shape~~~~~~  ", loss[key].shape)
             assert(loss[key].shape==())
             if opt.loss_weight[key] is not None:
                 assert not torch.isinf(loss[key]),"loss {} is Inf".format(key)
@@ -238,31 +241,47 @@ class Graph(torch.nn.Module):
         z_vals = z_vals.squeeze(dim=-1) #(1,-,128,1) -> #(1,49152,128)
         weights = weights.squeeze(dim=-1) # #(1,49152,128)
 
+
+
+
         pre_confi = ((z_vals[apply_depth_loss] - pred_depth_mean).pow(2) * weights[apply_depth_loss]).sum(-1) + 1e-5
                         # # (30278,128) - # (30278,1,1)
                         #  pow(2) : (30278,128)
         gt_depth = target_depth.squeeze(dim=-1)[apply_depth_loss]  #(-,1) -> (-)
         cnt_all = target_depth.shape[0] * target_depth.shape[1]
+        pred_depth_mean = pred_depth_mean.squeeze(dim=-1)
         f = nn.GaussianNLLLoss(eps=0.001)
 
-        a = float(gt_depth.shape[0])
-        b = float(cnt_all)
-        pred_depth_mean = pred_depth_mean.squeeze(dim=-1)
-        c = pred_depth_mean
-        d = gt_depth
-        e = pre_confi
+
+        # print("#########depth loss compute############")
+        # print("pred_depth_mean :  ",pred_depth_mean)
+        # print("pred_depth_mean max :  ",pred_depth_mean.max)
+        # print("pred_depth_mean min :  ",pred_depth_mean.min)
+        # print("gt_depth :  ",gt_depth)
+        # print("gt_depth max :  ",gt_depth.max)
+        # print("gt_depth min :  ",gt_depth.min)
+        #
+        # print("z_vals :  ",z_vals)
+        # print("z_vals max :  ",z_vals.max)
+        # print("z_vals min :  ",z_vals.min)
+
+
+
+
+
+        # a = float(gt_depth.shape[0])
+        # b = float(cnt_all)
+        # c = pred_depth_mean
+        # d = gt_depth
+        # e = pre_confi
         # print("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
         # print("a  ",a)
         # print("b  ",b)
         # print("c shape ",c.shape)
         # print("d shape ",d.shape)
         # print("e shape ",e.shape)
-
-        ff = f(pred_depth_mean, gt_depth, pre_confi)
+        # ff = f(pred_depth_mean, gt_depth, pre_confi)
         # print("ff ",ff)
-
-
-
 
         return float(gt_depth.shape[0]) / float(cnt_all) * f(pred_depth_mean, gt_depth, pre_confi)
 
