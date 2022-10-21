@@ -23,9 +23,17 @@ MAX_DEPTH = 20.0
 # python data/process_strayscanner_data.py --basedir ./data/strayscanner/computer01_120  --num_train=120
 # python data/process_strayscanner_data.py --basedir ./data/strayscanner/computer01_2  --num_train=200 --use_confi0_depth=-1
 # python data/process_strayscanner_data.py --basedir ./data/strayscanner/exhibition01  --num_train=120
-# python data/process_strayscanner_data.py --num_train=50 --basedir ./data/strayscanner/shallow_statue_50
+
 # python data/process_strayscanner_data.py --basedir ./data/strayscanner/lab_desk_2 --use_confi0_depth=-1
 # python data/process_strayscanner_data.py --basedir ./data/strayscanner/meetingroom_50_2 --use_confi0_depth=-1
+# python data/process_strayscanner_data.py --basedir ./data/strayscanner/meetingroom_50_2 --use_confi0_depth=-1 --num_train=50
+# python data/process_strayscanner_data.py --basedir ./data/strayscanner/meeting_room_20_2 --use_confi0_depth=-1 --num_train=20
+
+# python data/process_strayscanner_data.py --num_train=20 --basedir ./data/strayscanner/shallow_statue_20
+# python data/process_strayscanner_data.py --num_train=10 --basedir ./data/strayscanner/meeting_room_10
+
+
+
 
 
 def config_parser():
