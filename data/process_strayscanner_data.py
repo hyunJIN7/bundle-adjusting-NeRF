@@ -30,7 +30,9 @@ MAX_DEPTH = 20.0
 # python data/process_strayscanner_data.py --basedir ./data/strayscanner/meeting_room_20_2 --use_confi0_depth=-1 --num_train=20
 
 # python data/process_strayscanner_data.py --num_train=10 --basedir ./data/strayscanner/lab_computer_10
-# python data/process_strayscanner_data.py --num_train=5 --basedir ./data/strayscanner/lab_computer_5
+# python data/process_strayscanner_data.py --num_train=5 --basedir ./data/strayscanner/meeting_room_5
+# python data/process_strayscanner_data.py --num_train=5 --basedir ./data/strayscanner/meeting_room_5ver2 --depth_bound2=0.6 --depth_bound1=1.2
+
 
 
 
@@ -52,6 +54,10 @@ def config_parser():
 
     parser.add_argument("--use_confi0_depth", type=int, default=1,
                         help='far near range')
+    parser.add_argument("--depth_bound2", type=float, default=0.3,
+                        help='condi2 depth range')
+    parser.add_argument("--depth_bound1", type=float, default=0.8,
+                        help='condi1 depth range')
 
     return parser
 
@@ -160,12 +166,12 @@ def precompute_depth_sampling(origin_near,origin_far,depth,confidence):
     far = torch.ones_like(depth)
 
     condi2 = confidence[..., 0] == 2 #[N,H,W]
-    bound2 = 0.3
+    bound2 = args.depth_bound2
     near[condi2]= torch.clamp(depth[condi2]-bound2 ,min=0)
     far[condi2] = depth[condi2]+bound2
 
     condi1 = confidence[..., 0] == 1
-    bound1=0.8
+    bound1 = args.depth_bound1
     near[condi1] = torch.clamp(depth[condi1]-bound1 ,min=0)
     far[condi1] = depth[condi1]+bound1
 
