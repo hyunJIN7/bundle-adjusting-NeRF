@@ -29,10 +29,8 @@ MAX_DEPTH = 20.0
 # python data/process_strayscanner_data.py --basedir ./data/strayscanner/meetingroom_50_2 --use_confi0_depth=-1 --num_train=50
 # python data/process_strayscanner_data.py --basedir ./data/strayscanner/meeting_room_20_2 --use_confi0_depth=-1 --num_train=20
 
-# python data/process_strayscanner_data.py --num_train=20 --basedir ./data/strayscanner/shallow_statue_20
-# python data/process_strayscanner_data.py --num_train=10 --basedir ./data/strayscanner/meeting_room_10
-
-
+# python data/process_strayscanner_data.py --num_train=10 --basedir ./data/strayscanner/lab_computer_10
+# python data/process_strayscanner_data.py --num_train=5 --basedir ./data/strayscanner/lab_computer_5
 
 
 
@@ -162,12 +160,14 @@ def precompute_depth_sampling(origin_near,origin_far,depth,confidence):
     far = torch.ones_like(depth)
 
     condi2 = confidence[..., 0] == 2 #[N,H,W]
-    near[condi2]= torch.clamp(depth[condi2]-0.3 ,min=0)
-    far[condi2] = depth[condi2]+0.3
+    bound2 = 0.3
+    near[condi2]= torch.clamp(depth[condi2]-bound2 ,min=0)
+    far[condi2] = depth[condi2]+bound2
 
     condi1 = confidence[..., 0] == 1
-    near[condi1] = torch.clamp(depth[condi1]-0.8 ,min=0)
-    far[condi1] = depth[condi1]+0.8
+    bound1=0.8
+    near[condi1] = torch.clamp(depth[condi1]-bound1 ,min=0)
+    far[condi1] = depth[condi1]+bound1
 
     condi0 = confidence[..., 0] == 0
 

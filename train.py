@@ -6,7 +6,14 @@ import importlib
 import options
 from util import log
 os.environ['CUDA_LAUNCH_BLOCKING'] = "1"
-os.environ["CUDA_VISIBLE_DEVICES"] = "1"
+# os.environ["CUDA_VISIBLE_DEVICES"] = "0"
+
+
+# python3 train.py --group=strayscanner or iphone
+#                   --model=barf
+#                   --yaml=barf_strayscanner or iphone
+#                   --name=statue_2 --data.scene=statue --barf_c2f=[0.1,0.5]
+#
 def main():
 
     log.process(os.getpid())

@@ -287,7 +287,7 @@ def plot_save_poses(opt, fig, pose, pose_ref=None, path=None, ep=None):
     ax1 = fig.add_subplot(121, projection="3d")
     ax2 = fig.add_subplot(122, projection="3d")
 
-    bound = 6
+    bound = 3
 
     setup_3D_plot(ax1, elev=-90, azim=-90, lim=edict(x=(-bound, bound), y=(-bound, bound), z=(-bound, bound)))  # x=(-1,1),y=(-1,1),z=(-1,1)
     setup_3D_plot(ax2, elev=0, azim=-90, lim=edict(x=(-bound, bound), y=(-bound, bound), z=(-bound, bound)))
