@@ -322,19 +322,19 @@ class Model(base.Model):
             else:
                 scale = 1
 
-            print('#######novel poses target  from pose_GT #######')
-            print('$$$ {} pose_GT shape : {} '.format(opt.data.dataset, pose_GT.shape))
-            print('$$$ {} pose_GT[0] : {} '.format(opt.data.dataset, pose_GT[0]))
-            print('$$$ {} pose_GT[10] : {} '.format(opt.data.dataset, pose_GT[10]))
-            print('$$$ {} pose_GT[10] : {} '.format(opt.data.dataset, pose_GT[10]))
+            # print('#######novel poses target  from pose_GT #######')
+            # print('$$$ {} pose_GT shape : {} '.format(opt.data.dataset, pose_GT.shape))
+            # print('$$$ {} pose_GT[0] : {} '.format(opt.data.dataset, pose_GT[0]))
+            # print('$$$ {} pose_GT[10] : {} '.format(opt.data.dataset, pose_GT[10]))
+            # print('$$$ {} pose_GT[10] : {} '.format(opt.data.dataset, pose_GT[10]))
 
             # rotate novel views around the "center" camera of all poses
             idx_center = (pose_GT-pose_GT.mean(dim=0,keepdim=True))[...,3].norm(dim=-1).argmin()
             pose_novel = camera.get_novel_view_poses(opt,pose_GT[idx_center],N=20,scale=scale).to(opt.device)
-            #TODO : novel_view check
-            print('$$$ {} novel_view idx_center : {} '.format(opt.data.dataset,idx_center))
-            print('$$$ {} pose_novel[0] : {} '.format(opt.data.dataset,pose_novel[0]))
-            print('$$$ {} pose_novel[5] : {} '.format(opt.data.dataset, pose_novel[5]))
+            #novel_view
+            # print('$$$ {} novel_view idx_center : {} '.format(opt.data.dataset,idx_center))
+            # print('$$$ {} pose_novel[0] : {} '.format(opt.data.dataset,pose_novel[0]))
+            # print('$$$ {} pose_novel[5] : {} '.format(opt.data.dataset, pose_novel[5]))
 
             # render the novel views
             novel_path = "{}/novel_view".format(opt.output_path)
@@ -381,10 +381,10 @@ class Model(base.Model):
             pose_pred, pose_GT = self.get_all_training_poses(opt)
             if opt.model == "barf":
                 poses = pose_pred
-                print('#######novel poses target  from trained pose #######')
-                print('$$$ {} pose_pred[0] : {} '.format(opt.data.dataset, pose_pred[0]))
-                print('$$$ {} pose_pred[10] : {} '.format(opt.data.dataset, pose_pred[10]))
-                print('$$$ {} pose_pred[10] : {} '.format(opt.data.dataset, pose_pred[10]))
+                # print('#######novel poses target  from trained pose #######')
+                # print('$$$ {} pose_pred[0] : {} '.format(opt.data.dataset, pose_pred[0]))
+                # print('$$$ {} pose_pred[10] : {} '.format(opt.data.dataset, pose_pred[10]))
+                # print('$$$ {} pose_pred[10] : {} '.format(opt.data.dataset, pose_pred[10]))
 
             else :
                 poses = pose_GT

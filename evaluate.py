@@ -49,7 +49,6 @@ def main():
         """
             origin_novel_view : train 과정에서 optimize한 포즈 범위에서 novel_view 생성
             novel_view : GT 포즈 범위에서 novel view 생성
-            ???......
         """
 
 if __name__=="__main__":
