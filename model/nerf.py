@@ -483,11 +483,6 @@ class Graph(base.Graph):
 
             if opt.nerf.rand_rays and mode in ["train","test-optim"]: #pred_depth.shape == depth.shape and
                 if pred_depth.shape[1] != var.ray_idx.shape[0]:
-                    # print("###### shape ddddd ")
-                    # print("@@  pred_depth.shape[1] : " , pred_depth.shape[1])
-                    # print("@@  pred_dept" , pred_depth.shape)
-                    # print("@@ confidence ",confidence.shape)
-                    # print("@@ var.ray_idx shape[0] ",var.ray_idx.shape[0])
                     pred_depth = pred_depth[:,var.ray_idx]
                 depth = depth[:,var.ray_idx]  #gt
                 confidence = confidence[:,var.ray_idx]
@@ -617,12 +612,6 @@ class Graph(base.Graph):
             # depth = depth[idx,:,:].view(batch_size,-1)  #[B,H*W]
             # confidence = confidence[idx,:,:].view(batch_size,-1) #[B,H*W]
 
-            # print("@@@ near shape ", near.shape)
-            # print("@@@ idx ", idx)
-            # print("@@@ idx shape ",idx.shape)
-
-            # near = near[idx,:,:].view(batch_size,-1)
-            # far = far[idx,:,:].view(batch_size,-1)
             near = near.view(batch_size,-1)
             far = far.view(batch_size,-1)
             near, far = near[:,ray_idx],far[:, ray_idx]
@@ -631,9 +620,20 @@ class Graph(base.Graph):
             near, far = near.unsqueeze(-1), far.unsqueeze(-1)  # [B,H*W,N,1]
         else:
             near,far = opt.nerf.depth.range
-
-        # depth_samples = rand_samples/opt.nerf.sample_intvs * (depth_max-depth_min) + depth_min # [B,HW,N,1] [1,1024,128,1]
+        depth_min,depth_max=opt.nerf.depth.range
+        depth_samples_origin = rand_samples/opt.nerf.sample_intvs * (depth_max-depth_min) + depth_min # [B,HW,N,1] [1,1024,128,1]
         depth_samples = rand_samples/opt.nerf.sample_intvs * (far - near) + near # [B,HW,N,1] [1,1024,128,1]
+
+        # print("+++++++++++++++sampling +++++++++++++++")
+        # print(" confidence : ",confidence.view(batch_size,-1)[:,ray_idx].unsqueeze(-1))
+        # print("near : ",near[0])
+        # print("far : ",far[0])
+        # print("depth_min : ",depth_min)
+        # print("depth_max : ",depth_max)
+        # print("depth_samples : ",depth_samples[0])
+        # print("depth_samples_origin : ",depth_samples_origin[0])
+
+
         depth_samples = dict(
             metric=depth_samples,
             inverse=1/(depth_samples+1e-8),

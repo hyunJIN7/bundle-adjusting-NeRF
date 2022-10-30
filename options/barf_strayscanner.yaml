@@ -26,5 +26,5 @@ visdom:                                                     # Visdom options
 depth :
 #    depth_loss_weight : 0.04                                # 'weight of the depth loss, values <=0 do not apply depth loss'
     use_depth: true
-    use_depth_loss : false
+    use_depth_loss : true
 

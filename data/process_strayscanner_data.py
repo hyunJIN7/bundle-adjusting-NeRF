@@ -12,6 +12,7 @@ import numpy as np
 from PIL import Image
 import skvideo.io
 import cv2
+import random
 
 
 DEPTH_WIDTH = 256
@@ -31,7 +32,11 @@ MAX_DEPTH = 20.0
 
 # python data/process_strayscanner_data.py --num_train=10 --basedir ./data/strayscanner/lab_computer_10
 # python data/process_strayscanner_data.py --num_train=5 --basedir ./data/strayscanner/meeting_room_5
-# python data/process_strayscanner_data.py --num_train=5 --basedir ./data/strayscanner/tree_5ver2 --depth_bound2=0.6 --depth_bound1=1.2
+# python data/process_strayscanner_data.py --num_train=5 --basedir ./data/strayscanner/tree_5ver2 --depth_bound2=0.2 --depth_bound1=0.5
+
+# python data/process_strayscanner_data.py --num_train=7 --basedir ./data/strayscanner/tree_7 --depth_bound2=0.2 --depth_bound1=0.5
+# python data/process_strayscanner_data.py --num_train=5 --basedir ./data/strayscanner/meeting_room_5test3 --depth_bound2=0.2 --depth_bound1=1.2
+# python data/process_strayscanner_data.py --num_train=5 --basedir ./data/strayscanner/meeting_room_5test4 --depth_bound2=0.1 --depth_bound1=1.0
 
 
 
@@ -102,11 +107,12 @@ def process_stray_scanner(args, data,split='train'):
 
 
     all_index = np.arange(n)
-    train_val_index = np.linspace(0, n, num_train+num_val, endpoint=False, dtype=int)
+    train_val_test_index = np.linspace(0, n, num_train+num_val+num_test, endpoint=False, dtype=int)
+    train_val_index=train_val_test_index[:-num_test]
     train_index = train_val_index[:-num_val]
     val_index = train_val_index[-num_val:]
     test_index = np.delete(all_index,train_val_index)
-    test_index = np.random.choice(test_index,num_test,replace=False)
+    test_index = train_val_test_index[-num_test:]#np.random.choice(test_index,num_test,replace=False)
 
 
     # print("list rgb ",data['rgb'])
@@ -176,7 +182,6 @@ def precompute_depth_sampling(origin_near,origin_far,depth,confidence):
     far[condi1] = depth[condi1]+bound1
 
     condi0 = confidence[..., 0] == 0
-
     if args.use_confi0_depth > 0:
         # consider depth
         near[condi0] = 2 #torch.clamp(depth[condi0]-0.3,max=4)
