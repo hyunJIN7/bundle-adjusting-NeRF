@@ -30,3 +30,4 @@ visdom:                                                     # Visdom options
 depth:
     use_depth: true
     use_depth_loss :  true
+    sampling_half_confi0 : true                             # confi0인곳 true이면 반씩 샘플링 , false이면 128개 간격 샘플링

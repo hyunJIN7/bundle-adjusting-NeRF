@@ -36,7 +36,7 @@ MAX_DEPTH = 20.0
 
 # python data/process_strayscanner_data.py --num_train=7 --basedir ./data/strayscanner/tree_7 --depth_bound2=0.2 --depth_bound1=0.5
 # python data/process_strayscanner_data.py --num_train=5 --basedir ./data/strayscanner/lab_desk_5 --depth_bound2=0.2 --depth_bound1=1.2
-# python data/process_strayscanner_data.py --num_train=5 --basedir ./data/strayscanner/meeting_room_5ver4 --depth_bound2=0.1 --depth_bound1=0.5
+# python data/process_strayscanner_data.py --num_train=5 --basedir ./data/strayscanner/meeting_room_5ver5 --depth_bound2=0.1 --depth_bound1=0.8
 
 
 

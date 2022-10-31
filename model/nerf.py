@@ -606,12 +606,15 @@ class Graph(base.Graph):
         # sample_intvs : sampling point num , idx : batch_num
         num_rays = num_rays or opt.H * opt.W
         depth_min,depth_max=opt.nerf.depth.range
+        rand_samples = torch.rand(batch_size, num_rays, opt.nerf.sample_intvs, 1, device=opt.device) if opt.nerf.sample_stratified else 0.5
+        rand_samples += torch.arange(opt.nerf.sample_intvs, device=opt.device)[None, None, :, None].float()  # [B,HW,N,1] [1,1024,128,1]
+        depth_samples = rand_samples / opt.nerf.sample_intvs * (depth_max - depth_min) + depth_min  # [B,HW,N,1] [1,1024,128,1]
 
         # print("sample depth @@@@@@@@@@@@@@@@@2")
         if near is not None and far is not None: # [train_num,H,W] use depth info
             N_samples_half = opt.nerf.sample_intvs // 2
 
-            # sampling with depth infor
+            # half sampling with depth infor
             rand_samples = torch.rand(batch_size, num_rays, N_samples_half, 1,device=opt.device) if opt.nerf.sample_stratified else 0.5
             rand_samples += torch.arange(N_samples_half, device=opt.device)[None, None, :,None].float()  # [B,HW,N,1] [1,1024,64,1]
 
@@ -624,25 +627,26 @@ class Graph(base.Graph):
             depth_samples1 = rand_samples / N_samples_half * (far - near) + near  # [B,HW,N,1] [1,1024,128,1]
 
 
-            # origin sampling
+            # origin half sampling
             rand_samples2 = torch.rand(batch_size, num_rays, N_samples_half, 1, device=opt.device) if opt.nerf.sample_stratified else 0.5
             rand_samples2 += torch.arange(N_samples_half, device=opt.device)[None, None, :,None].float()  # [B,HW,N,1] [1,1024,64,1]
             depth_samples2 = rand_samples2 /N_samples_half * (depth_max - depth_min) + depth_min  # [B,HW,N,1] [1,1024,64,1]
 
-
-            # print("depth_samples1 ", depth_samples1[...,0])
-            # print("depth_samples2 ", depth_samples2[...,0])
-
             # combination
             depth_samples = torch.cat((depth_samples1,depth_samples2),dim=2)
-            # print("!! depth_samples ", depth_samples[...,0])
-            depth_samples,_ = torch.sort(depth_samples,dim=2)
-            # print("@@ depth_samples ", depth_samples[...,0])
+            depth_samples_combination ,_ = torch.sort(depth_samples,dim=2)  # [1,1024,64,1]
+            if not opt.depth.sampling_half_confi0:
+                # confi0 opt.nerf.sample_intvs sampling
+                confidence = confidence.view(batch_size, -1)
+                confidence = confidence[:, ray_idx]  # [1,1024]
+                confi0 = confidence == 0
+                depth_samples_combination[confi0] = depth_samples[confi0]
+            depth_samples = depth_samples_combination
 
-        else:  #origin
-            rand_samples = torch.rand(batch_size, num_rays, opt.nerf.sample_intvs, 1, device=opt.device) if opt.nerf.sample_stratified else 0.5
-            rand_samples += torch.arange(opt.nerf.sample_intvs, device=opt.device)[None, None, :,None].float()  # [B,HW,N,1] [1,1024,128,1]
-            depth_samples = rand_samples/opt.nerf.sample_intvs * (depth_max-depth_min) + depth_min # [B,HW,N,1] [1,1024,128,1]
+        # else:  #origin
+        #     rand_samples = torch.rand(batch_size, num_rays, opt.nerf.sample_intvs, 1, device=opt.device) if opt.nerf.sample_stratified else 0.5
+        #     rand_samples += torch.arange(opt.nerf.sample_intvs, device=opt.device)[None, None, :,None].float()  # [B,HW,N,1] [1,1024,128,1]
+        #     depth_samples = rand_samples/opt.nerf.sample_intvs * (depth_max-depth_min) + depth_min # [B,HW,N,1] [1,1024,128,1]
 
         depth_samples = dict(
             metric=depth_samples,
