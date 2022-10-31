@@ -579,38 +579,41 @@ class Graph(base.Graph):
     #     far[condi0] = torch.clamp(depth[condi0]+0.3,min=depth_max)
     #     return near[...,0],far[...,0]  #[B,H*W]
 
-    def precompute_depth_sampling(self,opt,depth,confidence):
-        #TODO : 지금 기준은 confidence , 성능 구리면 depth 값 기준으로도 더 조건 추가 4.5 이상이면 해보고 별로면
-        depth_min, depth_max = opt.nerf.depth.range
-        # [B,H*W]
-        # depth = depth[...,None]
-        # confidence = confidence[..., None]
-        near = torch.ones_like(depth,device=opt.device)
-        far = torch.ones_like(depth,device=opt.device)
-
-        for i in range(depth.shape[0]):
-            for j in range (depth.shape[1]):
-                if confidence[i][j] == 2 :
-                    near[i][j] = torch.clamp(depth[i][j]-0.3 ,min=0)
-                    far[i][j] = depth[i][j] + 0.3
-                elif confidence[i][j] == 1 :
-                    near[i][j] = torch.clamp(depth[i][j] - 0.6, min=0)
-                    far[i][j] = depth[i][j] + 0.6
-                else:
-                    near[i][j] = torch.clamp(depth[i][j]-0.3,max=4)
-                    far[i][j] = torch.clamp(depth[i][j]+0.3,min=depth_max)
-        return near,far  #[B,H*W]
+    # def precompute_depth_sampling(self,opt,depth,confidence):
+    #     #TODO : 지금 기준은 confidence , 성능 구리면 depth 값 기준으로도 더 조건 추가 4.5 이상이면 해보고 별로면
+    #     depth_min, depth_max = opt.nerf.depth.range
+    #     # [B,H*W]
+    #     # depth = depth[...,None]
+    #     # confidence = confidence[..., None]
+    #     near = torch.ones_like(depth,device=opt.device)
+    #     far = torch.ones_like(depth,device=opt.device)
+    #
+    #     for i in range(depth.shape[0]):
+    #         for j in range (depth.shape[1]):
+    #             if confidence[i][j] == 2 :
+    #                 near[i][j] = torch.clamp(depth[i][j]-0.3 ,min=0)
+    #                 far[i][j] = depth[i][j] + 0.3
+    #             elif confidence[i][j] == 1 :
+    #                 near[i][j] = torch.clamp(depth[i][j] - 0.6, min=0)
+    #                 far[i][j] = depth[i][j] + 0.6
+    #             else:
+    #                 near[i][j] = torch.clamp(depth[i][j]-0.3,max=4)
+    #                 far[i][j] = torch.clamp(depth[i][j]+0.3,min=depth_max)
+    #     return near,far  #[B,H*W]
 
 
     def sample_depth(self,opt,batch_size,num_rays=None,idx=None,ray_idx=None,depth=None,confidence=None,near=None,far=None):
         # sample_intvs : sampling point num , idx : batch_num
         num_rays = num_rays or opt.H * opt.W
-        rand_samples = torch.rand(batch_size,num_rays,opt.nerf.sample_intvs,1,device=opt.device) if opt.nerf.sample_stratified else 0.5
-        rand_samples += torch.arange(opt.nerf.sample_intvs, device=opt.device)[None, None,:,None].float()  # [B,HW,N,1]
+        depth_min,depth_max=opt.nerf.depth.range
 
-        if near is not None and far is not None: # [train_num,H,W]
-            # depth = depth[idx,:,:].view(batch_size,-1)  #[B,H*W]
-            # confidence = confidence[idx,:,:].view(batch_size,-1) #[B,H*W]
+        # print("sample depth @@@@@@@@@@@@@@@@@2")
+        if near is not None and far is not None: # [train_num,H,W] use depth info
+            N_samples_half = opt.nerf.sample_intvs // 2
+
+            # sampling with depth infor
+            rand_samples = torch.rand(batch_size, num_rays, N_samples_half, 1,device=opt.device) if opt.nerf.sample_stratified else 0.5
+            rand_samples += torch.arange(N_samples_half, device=opt.device)[None, None, :,None].float()  # [B,HW,N,1] [1,1024,64,1]
 
             near = near.view(batch_size,-1)
             far = far.view(batch_size,-1)
@@ -618,21 +621,28 @@ class Graph(base.Graph):
             near, far = near.unsqueeze(-1), far.unsqueeze(-1)
             near, far = near.expand_as(rand_samples[...,0]),  far.expand_as(rand_samples[...,0])  #[B,H*W,N]
             near, far = near.unsqueeze(-1), far.unsqueeze(-1)  # [B,H*W,N,1]
-        else:
-            near,far = opt.nerf.depth.range
-        depth_min,depth_max=opt.nerf.depth.range
-        depth_samples_origin = rand_samples/opt.nerf.sample_intvs * (depth_max-depth_min) + depth_min # [B,HW,N,1] [1,1024,128,1]
-        depth_samples = rand_samples/opt.nerf.sample_intvs * (far - near) + near # [B,HW,N,1] [1,1024,128,1]
+            depth_samples1 = rand_samples / N_samples_half * (far - near) + near  # [B,HW,N,1] [1,1024,128,1]
 
-        # print("+++++++++++++++sampling +++++++++++++++")
-        # print(" confidence : ",confidence.view(batch_size,-1)[:,ray_idx].unsqueeze(-1))
-        # print("near : ",near[0])
-        # print("far : ",far[0])
-        # print("depth_min : ",depth_min)
-        # print("depth_max : ",depth_max)
-        # print("depth_samples : ",depth_samples[0])
-        # print("depth_samples_origin : ",depth_samples_origin[0])
 
+            # origin sampling
+            rand_samples2 = torch.rand(batch_size, num_rays, N_samples_half, 1, device=opt.device) if opt.nerf.sample_stratified else 0.5
+            rand_samples2 += torch.arange(N_samples_half, device=opt.device)[None, None, :,None].float()  # [B,HW,N,1] [1,1024,64,1]
+            depth_samples2 = rand_samples2 /N_samples_half * (depth_max - depth_min) + depth_min  # [B,HW,N,1] [1,1024,64,1]
+
+
+            # print("depth_samples1 ", depth_samples1[...,0])
+            # print("depth_samples2 ", depth_samples2[...,0])
+
+            # combination
+            depth_samples = torch.cat((depth_samples1,depth_samples2),dim=2)
+            # print("!! depth_samples ", depth_samples[...,0])
+            depth_samples,_ = torch.sort(depth_samples,dim=2)
+            # print("@@ depth_samples ", depth_samples[...,0])
+
+        else:  #origin
+            rand_samples = torch.rand(batch_size, num_rays, opt.nerf.sample_intvs, 1, device=opt.device) if opt.nerf.sample_stratified else 0.5
+            rand_samples += torch.arange(opt.nerf.sample_intvs, device=opt.device)[None, None, :,None].float()  # [B,HW,N,1] [1,1024,128,1]
+            depth_samples = rand_samples/opt.nerf.sample_intvs * (depth_max-depth_min) + depth_min # [B,HW,N,1] [1,1024,128,1]
 
         depth_samples = dict(
             metric=depth_samples,
