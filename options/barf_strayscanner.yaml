@@ -27,5 +27,5 @@ depth :
 #    depth_loss_weight : 0.04                                # 'weight of the depth loss, values <=0 do not apply depth loss'
     use_depth: true
     use_depth_loss : true
-    sampling_half_confi0 : true                             # confi0인곳 true이면 반씩 샘플링 , false이면 128개 간격 샘플링
+    sampling_half_confi0 : true                             # true이면 confi0인곳 반씩 샘플링 , false이면 128개 간격 샘플링
 
