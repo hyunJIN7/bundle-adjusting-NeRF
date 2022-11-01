@@ -38,8 +38,9 @@ MAX_DEPTH = 20.0
 # python data/process_strayscanner_data.py --num_train=5 --basedir ./data/strayscanner/lab_desk_5 --depth_bound2=0.2 --depth_bound1=1.2
 # python data/process_strayscanner_data.py --num_train=5 --basedir ./data/strayscanner/exhibition02_5 --depth_bound2=0.2 --depth_bound1=0.7
 
-# python data/process_strayscanner_data.py --num_train=6 --basedir ./data/strayscanner/meeting_room_6ver2 --depth_bound2=0.1 --depth_bound1=0.5
-
+# python data/process_strayscanner_data.py --num_train=3 --basedir ./data/strayscanner/pocari01_3 --depth_bound2=0.15 --depth_bound1=0.75
+# python data/process_strayscanner_data.py --num_train=5 --basedir ./data/strayscanner/pocari01_5 --depth_bound2=0.15 --depth_bound1=0.75
+# python data/process_strayscanner_data.py --num_train=7 --basedir ./data/strayscanner/pocari01_7 --depth_bound2=0.15 --depth_bound1=0.75
 
 
 def config_parser():
@@ -112,13 +113,25 @@ def process_stray_scanner(args, data,split='train'):
     train_val_index=train_val_test_index[:-num_test]
     train_index = train_val_index[:-num_val]
     val_index = train_val_index[-num_val:]
-    test_index = np.delete(all_index,train_val_index)
-    test_index = train_val_test_index[-num_test:]#np.random.choice(test_index,num_test,replace=False)
+    test_index = train_val_test_index[-num_test:]
+    # if random sampling
+    # test_index = np.delete(all_index,train_val_index)
+    # test_index = np.random.choice(test_index,num_test,replace=False)
 
 
-    # print("list rgb ",data['rgb'])
+    # pocari_3 = np.array([ 115 187 950 ])
+    # pocari_7 = np.array([0 ,72, 115 ,129, 230 ,302 ,432])
+    # pocari_5
+    # train_index = np.array([0 ,72, 115 ,129, 230 ,302 ,432])
+    # val_index = np.array([ 331 ,1670 ,1728, 1757])
+    # test_index = np.array([547, 576 ,662 ,1689 ,167 ,330 ,421, 496 ,778 ,86, 115 ,144])
+    # train_index.sort()
+    # val_index.sort()
+    # test_index.sort()
+
+
+
     rgbs = np.array(data['rgb'])
-    # print("np rgb ", rgbs)
     depths = np.array(data['depth'])
     confidences = np.array(data['confidence'])
     poses = np.array(data['odometry'])

@@ -213,8 +213,8 @@ class Graph(torch.nn.Module):
         # target_conf : gt_confidence
         # target_depth : gt_depth
 
-        # confin 1 or 2 and gt_depth < 4.5
-        condi1 = target_conf[...,0] != 0
+        # confin 2 and gt_depth < 4.5
+        condi1 = target_conf[...,0] == 2
         condi2 = target_depth[...,0] < 4.5
         apply_depth_loss = torch.logical_and(condi1,condi2) #(batch,H*W)
 
