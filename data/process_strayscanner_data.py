@@ -18,7 +18,7 @@ import random
 DEPTH_WIDTH = 256
 DEPTH_HEIGHT = 192
 MAX_DEPTH = 20.0
-
+np.random.seed(0)
 #  conda activate StrayVisualizer-main
 # python data/process_strayscanner_data.py --basedir ./data/strayscanner/computer01  --num_train=200
 # python data/process_strayscanner_data.py --basedir ./data/strayscanner/computer01_120  --num_train=120
@@ -38,10 +38,13 @@ MAX_DEPTH = 20.0
 # python data/process_strayscanner_data.py --num_train=5 --basedir ./data/strayscanner/lab_desk_5 --depth_bound2=0.2 --depth_bound1=1.2
 # python data/process_strayscanner_data.py --num_train=5 --basedir ./data/strayscanner/exhibition02_5 --depth_bound2=0.2 --depth_bound1=0.7
 
-# python data/process_strayscanner_data.py --num_train=3 --basedir ./data/strayscanner/pocari01_3 --depth_bound2=0.15 --depth_bound1=0.75
-# python data/process_strayscanner_data.py --num_train=5 --basedir ./data/strayscanner/pocari01_5 --depth_bound2=0.15 --depth_bound1=0.75
-# python data/process_strayscanner_data.py --num_train=7 --basedir ./data/strayscanner/pocari01_7 --depth_bound2=0.15 --depth_bound1=0.75
+# python data/process_strayscanner_data.py --num_train=3 --basedir ./data/strayscanner/pocari03_3 --depth_bound2=0.2 --depth_bound1=0.7
+# python data/process_strayscanner_data.py --num_train=5 --basedir ./data/strayscanner/pocari03_5 --depth_bound2=0.2 --depth_bound1=0.7
+# python data/process_strayscanner_data.py --num_train=7 --basedir ./data/strayscanner/piano03_7 --depth_bound2=0.2 --depth_bound1=0.7
 
+# python data/process_strayscanner_data.py --num_train=5 --basedir ./data/strayscanner/test --depth_bound2=0.2 --depth_bound1=0.7
+
+# python data/process_strayscanner_data.py --num_train=120  --num_test=20 --basedir ./data/strayscanner/piano03 --depth_bound2=0.2 --depth_bound1=0.7
 
 def config_parser():
     import configargparse
@@ -61,9 +64,9 @@ def config_parser():
 
     parser.add_argument("--use_confi0_depth", type=int, default=1,
                         help='far near range')
-    parser.add_argument("--depth_bound2", type=float, default=0.3,
+    parser.add_argument("--depth_bound2", type=float, default=0.2,
                         help='condi2 depth range')
-    parser.add_argument("--depth_bound1", type=float, default=0.8,
+    parser.add_argument("--depth_bound1", type=float, default=0.7,
                         help='condi1 depth range')
 
     return parser
@@ -109,26 +112,28 @@ def process_stray_scanner(args, data,split='train'):
 
 
     all_index = np.arange(n)
-    train_val_test_index = np.linspace(0, n, num_train+num_val+num_test, endpoint=False, dtype=int)
-    train_val_index=train_val_test_index[:-num_test]
+    train_val_test_index = np.linspace(0, n, num_train+num_val, endpoint=False, dtype=int)
+    train_val_index = np.linspace(0, n, num_train+num_val, endpoint=False, dtype=int)
     train_index = train_val_index[:-num_val]
     val_index = train_val_index[-num_val:]
-    test_index = train_val_test_index[-num_test:]
     # if random sampling
+    test_index = np.delete(all_index,train_val_index)
+    test_index = np.random.choice(test_index,num_test,replace=False)
+    test_index.sort()
+    # train_index =  np.array([519,692])
+    # val_index = np.array([1212,1385,1558,1731])
+    # test_index = np.array([83,414,746,796,833,1079,1147,1341,1589,1679,1687,1801])
+
+
+    # all_index = np.arange(n)
+    # train_val_test_index = np.linspace(0, n, num_train+num_val+num_test, endpoint=False, dtype=int)
+    # train_val_index=train_val_test_index[:-num_test]
+    # train_index = train_val_index[:-num_val]
+    # val_index = train_val_index[-num_val:]
+    # test_index = train_val_test_index[-num_test:]
+    # # if random sampling
     # test_index = np.delete(all_index,train_val_index)
     # test_index = np.random.choice(test_index,num_test,replace=False)
-
-
-    # pocari_3 = np.array([ 115 187 950 ])
-    # pocari_7 = np.array([0 ,72, 115 ,129, 230 ,302 ,432])
-    # pocari_5
-    # train_index = np.array([0 ,72, 115 ,129, 230 ,302 ,432])
-    # val_index = np.array([ 331 ,1670 ,1728, 1757])
-    # test_index = np.array([547, 576 ,662 ,1689 ,167 ,330 ,421, 496 ,778 ,86, 115 ,144])
-    # train_index.sort()
-    # val_index.sort()
-    # test_index.sort()
-
 
 
     rgbs = np.array(data['rgb'])
