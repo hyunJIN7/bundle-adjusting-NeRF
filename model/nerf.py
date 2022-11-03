@@ -610,8 +610,7 @@ class Graph(base.Graph):
         rand_samples += torch.arange(opt.nerf.sample_intvs, device=opt.device)[None, None, :, None].float()  # [B,HW,N,1] [1,1024,128,1]
         depth_samples = rand_samples / opt.nerf.sample_intvs * (depth_max - depth_min) + depth_min  # [B,HW,N,1] [1,1024,128,1]
 
-        # print("sample depth @@@@@@@@@@@@@@@@@2")
-        if near is not None and far is not None: # [train_num,H,W] use depth info
+        if opt.depth.use_depth and near is not None and far is not None: # [train_num,H,W] use depth info
             N_samples_half = opt.nerf.sample_intvs // 2
 
             # half sampling with depth infor

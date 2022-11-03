@@ -20,31 +20,14 @@ DEPTH_HEIGHT = 192
 MAX_DEPTH = 20.0
 np.random.seed(0)
 #  conda activate StrayVisualizer-main
-# python data/process_strayscanner_data.py --basedir ./data/strayscanner/computer01  --num_train=200
-# python data/process_strayscanner_data.py --basedir ./data/strayscanner/computer01_120  --num_train=120
-# python data/process_strayscanner_data.py --basedir ./data/strayscanner/computer01_2  --num_train=200 --use_confi0_depth=-1
-# python data/process_strayscanner_data.py --basedir ./data/strayscanner/exhibition01  --num_train=120
 
-# python data/process_strayscanner_data.py --basedir ./data/strayscanner/lab_desk_2 --use_confi0_depth=-1
-# python data/process_strayscanner_data.py --basedir ./data/strayscanner/meetingroom_50_2 --use_confi0_depth=-1
-# python data/process_strayscanner_data.py --basedir ./data/strayscanner/meetingroom_50_2 --use_confi0_depth=-1 --num_train=50
-# python data/process_strayscanner_data.py --basedir ./data/strayscanner/meeting_room_20_2 --use_confi0_depth=-1 --num_train=20
+# python data/process_strayscanner_data.py --num_train=3 --basedir ./data/strayscanner/lab_computer_3 --depth_bound2=0.2 --depth_bound1=0.7
+# python data/process_strayscanner_data.py --num_train=5 --basedir ./data/strayscanner/lab_computer_5 --depth_bound2=0.2 --depth_bound1=0.7
+# python data/process_strayscanner_data.py --num_train=7 --basedir ./data/strayscanner/trashcan01_7 --depth_bound2=0.2 --depth_bound1=0.7
 
-# python data/process_strayscanner_data.py --num_train=10 --basedir ./data/strayscanner/lab_computer_10
-# python data/process_strayscanner_data.py --num_train=5 --basedir ./data/strayscanner/meeting_room_5
-# python data/process_strayscanner_data.py --num_train=5 --basedir ./data/strayscanner/tree_5ver2 --depth_bound2=0.2 --depth_bound1=0.5
 
-# python data/process_strayscanner_data.py --num_train=7 --basedir ./data/strayscanner/tree_7 --depth_bound2=0.2 --depth_bound1=0.5
-# python data/process_strayscanner_data.py --num_train=5 --basedir ./data/strayscanner/lab_desk_5 --depth_bound2=0.2 --depth_bound1=1.2
-# python data/process_strayscanner_data.py --num_train=5 --basedir ./data/strayscanner/exhibition02_5 --depth_bound2=0.2 --depth_bound1=0.7
+# python data/process_strayscanner_data.py --basedir ./data/strayscanner/trashcan01 --depth_bound2=0.2 --depth_bound1=0.7
 
-# python data/process_strayscanner_data.py --num_train=3 --basedir ./data/strayscanner/pocari03_3 --depth_bound2=0.2 --depth_bound1=0.7
-# python data/process_strayscanner_data.py --num_train=5 --basedir ./data/strayscanner/pocari03_5 --depth_bound2=0.2 --depth_bound1=0.7
-# python data/process_strayscanner_data.py --num_train=7 --basedir ./data/strayscanner/piano03_7 --depth_bound2=0.2 --depth_bound1=0.7
-
-# python data/process_strayscanner_data.py --num_train=5 --basedir ./data/strayscanner/test --depth_bound2=0.2 --depth_bound1=0.7
-
-# python data/process_strayscanner_data.py --num_train=120  --num_test=20 --basedir ./data/strayscanner/piano03 --depth_bound2=0.2 --depth_bound1=0.7
 
 def config_parser():
     import configargparse
@@ -120,9 +103,11 @@ def process_stray_scanner(args, data,split='train'):
     test_index = np.delete(all_index,train_val_index)
     test_index = np.random.choice(test_index,num_test,replace=False)
     test_index.sort()
-    # train_index =  np.array([519,692])
-    # val_index = np.array([1212,1385,1558,1731])
-    # test_index = np.array([83,414,746,796,833,1079,1147,1341,1589,1679,1687,1801])
+    # train_index = np.array([149,1874,2471])
+    # train_index = np.array([149,349,1874,1548,2471])
+    # train_index = np.array([124,149,424,1874,2272,2471,2921])
+    # val_index = np.array([2996,3021,3046,3071])
+    # test_index = np.array([721,877,1200,1476,1510,1542,1722,2355,2362,2707,2992])
 
 
     # all_index = np.arange(n)

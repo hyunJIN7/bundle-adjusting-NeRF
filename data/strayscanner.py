@@ -59,23 +59,6 @@ class Dataset(base.Dataset):
             self.confidence = self.preload_threading(opt, self.get_confidence, data_str="confidence")
             self.bound = self.preload_threading(opt, self.get_bound, data_str="bound")
 
-        ## for GT data(optitrack)
-        # gt_pose_fname = "{}/opti_transforms_{}.txt".format(self.path,split)
-        # gt_pose_file = os.path.join('./', gt_pose_fname)
-        # if os.path.isfile(gt_pose_file): # gt file exist
-            # print("##########opti load ########")
-            # with open(gt_pose_file, "r") as f:  # frame.txt 읽어서
-            #     cam_frame_lines = f.readlines()
-            # cam_gt_pose = []  # time r1x y z tx r2x y z ty r3x y z tz
-            # for line in cam_frame_lines:
-            #     line_data_list = line.split(' ')
-            #     if len(line_data_list) == 0:
-            #         continue
-            #     pose_raw = np.reshape(line_data_list[1:], (3, 4))
-            #     cam_gt_pose.append(pose_raw)
-            # cam_gt_pose = np.array(odometry, dtype=float)
-            # self.opti_pose = odometry
-        # else: self.opti_pose = poses
 
     def prefetch_all_data(self,opt):
         assert(not opt.data.augment)
