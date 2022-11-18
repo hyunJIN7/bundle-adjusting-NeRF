@@ -146,6 +146,7 @@ def novel_view(args):
     pose_novel = camera.get_novel_view_poses(opt=None,pose_anchor= poses[idx_center], N=30, scale=scale)
 
 
+
     generate_videos_pose(pose_novel,poses) # novel, pose
 
 
@@ -168,7 +169,7 @@ def novel_view(args):
     # poses2 = poses[:500,:3,]
     #
     # print("poses2 shape ", poses2.shape)
-    generate_videos_pose(poses2, poses2)  # novel, pose
+    # generate_videos_pose(poses2, poses2)  # novel, pose
 
 
 

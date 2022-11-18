@@ -353,14 +353,14 @@ def plot_save_poses_blender(opt,fig,pose,pose_ref=None,path=None,ep=None):
     z_max = np.max([np.max(cam_ref[:, 5, 2]), np.max(cam[:, 5, 2])]) + 0.05
     z_min = np.min([np.min(cam_ref[:, 5, 2]), np.min(cam[:, 5, 2])]) - 0.05
 
-    setup_3D_plot(ax,elev=45,azim=115,lim=edict(x=(x_min, x_max), y=(y_min, y_max), z=(z_min, z_max)))
+    setup_3D_plot(ax,elev=90,azim=100,lim=edict(x=(x_min, x_max), y=(y_min, y_max), z=(z_min, z_max)))
     plt.subplots_adjust(left=0,right=1,bottom=0,top=0.95,wspace=0,hspace=0)
     plt.margins(tight=True,x=0,y=0)
     # plot the cameras
     N = len(cam)
     # ref_color = (0.7,0.2,0.7)
     ref_color = (0.3, 0.3, 0.3)
-    pred_color = (0.1,0.65,0.65)#(0,0.6,0.7)
+    pred_color = (0.7,0.2,0.7)#(0,0.6,0.7)#BARF
     ax.add_collection3d(Poly3DCollection([v[:4] for v in cam_ref],alpha=0.2,facecolor=ref_color))
     for i in range(N):
         ax.plot(cam_ref[i,:,0],cam_ref[i,:,1],cam_ref[i,:,2],color=ref_color,linewidth=0.5)
@@ -422,6 +422,47 @@ def plot_save_poses_for_oneNall(opt,fig,pose,pose_ref=None,path=None,ep=None):
     plt.clf()
 
 
+
+def plot_save_poses_for_oneNall_optisync(fig,pose,pose_ref=None,path=None,ep=None):
+    # get the camera meshes
+    _,_,cam = get_camera_mesh(pose,depth=0.5)
+    cam = cam.numpy()
+    if pose_ref is not None:
+        _,_,cam_ref = get_camera_mesh(pose_ref,depth=0.5)
+        cam_ref = cam_ref.numpy()
+    # set up plot window(s)
+    plt.title("epoch {}".format(ep))
+    ax1 = fig.add_subplot(121,projection="3d")
+    ax2 = fig.add_subplot(122,projection="3d")
+    setup_3D_plot(ax1,elev=-90,azim=-90,lim=edict(x=(-1,1),y=(-1,1),z=(-1,1)))  #lim=edict(x=(-1,1),y=(-1,1),z=(-1,1)) lim=edict(x=(-2,2),y=(-2,2),z=(-2,2))
+    setup_3D_plot(ax2,elev=0,azim=-90,lim=edict(x=(-1,1),y=(-1,1),z=(-1,1)))  #lim=edict(x=(-1,1),y=(-1,1),z=(-1,1))
+    ax1.set_title("forward-facing view",pad=0)
+    ax2.set_title("top-down view",pad=0)
+    plt.subplots_adjust(left=0,right=1,bottom=0,top=0.95,wspace=0,hspace=0)
+    plt.margins(tight=True,x=0,y=0)
+
+    #TODO : camers size
+
+    # plot the cameras
+    N = len(pose_ref)
+    color = plt.get_cmap("gist_rainbow")
+    gray_color = 0.8
+    for i in range(N):
+        if pose_ref is not None:
+            ax1.plot(cam_ref[i,:,0],cam_ref[i,:,1],cam_ref[i,:,2],color=(gray_color,gray_color,gray_color),linewidth=1)
+            ax2.plot(cam_ref[i,:,0],cam_ref[i,:,1],cam_ref[i,:,2],color=(gray_color,gray_color,gray_color),linewidth=1)
+            ax1.scatter(cam_ref[i,5,0],cam_ref[i,5,1],cam_ref[i,5,2],color=(gray_color,gray_color,gray_color),s=40)
+            ax2.scatter(cam_ref[i,5,0],cam_ref[i,5,1],cam_ref[i,5,2],color=(gray_color,gray_color,gray_color),s=40)
+    c = np.array(color(float(1) / N)) * 0.8
+    ax1.plot(cam[0, :, 0], cam[0, :, 1], cam[0, :, 2], color=c)
+    ax2.plot(cam[0, :, 0], cam[0, :, 1], cam[0, :, 2], color=c)
+    ax1.scatter(cam[0, 5, 0], cam[0, 5, 1], cam[0, 5, 2], color=c, s=40)
+    ax2.scatter(cam[0, 5, 0], cam[0, 5, 1], cam[0, 5, 2], color=c, s=40)
+    png_fname = "{}/{}.png".format(path,ep)
+    plt.savefig(png_fname,dpi=75)
+    # clean up
+    plt.clf()
+
 # for novel_view test
 def plot_save_novel_poses(fig,pose,pose_ref=None,path=None,ep=None): # pose = novel_view, pose_ref= rectangle_pose
     # get the camera meshes
@@ -451,7 +492,7 @@ def plot_save_novel_poses(fig,pose,pose_ref=None,path=None,ep=None): # pose = no
     ax.add_collection3d(Poly3DCollection([v[:4] for v in cam],alpha=0.2,facecolor=pred_color))
     for i in range(N):
         ax.plot(cam[i,:,0],cam[i,:,1],cam[i,:,2],color=pred_color,linewidth=1)
-    for i in range(len(cam_ref)):
+    for i in range(N):
         ax.scatter(cam[i,5,0],cam[i,5,1],cam[i,5,2],color=pred_color,s=20)
     for i in range(N):
         ax.plot(cam[i,5,0],

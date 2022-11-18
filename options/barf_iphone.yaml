@@ -28,6 +28,6 @@ visdom:                                                     # Visdom options
     cam_depth: 0.5                                          # size of visualized cameras
 
 depth:
-    use_depth: false
-    use_depth_loss :  false
+    use_depth: true
+    use_depth_loss :  true
     sampling_half_confi0 : true                             # true이면 confi0인곳 반씩 샘플링 , false이면 128개 간격 샘플링

@@ -26,7 +26,7 @@ np.random.seed(0)
 # python data/process_strayscanner_data.py --num_train=7 --basedir ./data/strayscanner/trashcan01_7 --depth_bound2=0.2 --depth_bound1=0.7
 
 
-# python data/process_strayscanner_data.py --basedir ./data/strayscanner/trashcan01 --depth_bound2=0.2 --depth_bound1=0.7
+# python data/process_strayscanner_data.py --num_train=620  --basedir ./data/strayscanner/p17 --depth_bound2=0.2 --depth_bound1=0.7
 
 
 def config_parser():
@@ -91,7 +91,7 @@ def process_stray_scanner(args, data,split='train'):
     n = data['odometry'].shape[0]
     num_train = args.num_train
     num_val = 4
-    num_test = args.num_test
+    num_test = 1#args.num_test
 
 
     all_index = np.arange(n)
@@ -104,41 +104,25 @@ def process_stray_scanner(args, data,split='train'):
     test_index = np.random.choice(test_index,num_test,replace=False)
     test_index.sort()
 
+    # python data/process_strayscanner_data.py --num_train=5 --basedir ./data/strayscanner/p17_7 --depth_bound2=0.2 --depth_bound1=0.7
+    # train_index = np.array([40,89,175,211,264,407,447])
+    # val_index = np.array([41,88,174,210,265])
+    # test_index = np.array([0,36,46,67,76,93,106,118,148,164,188,208,219,238,248,263])
 
-    # python data/process_strayscanner_data.py --num_train=5 --basedir ./data/strayscanner/lab_desk_5ver2 --depth_bound2=0.4 --depth_bound1=1
-    # train_index = np.array([0,401,1759,2500,3395])
-    # val_index = np.array([61,1697,2562,2871])
-    # test_index = np.array([30,61,432,1389,1728,1914,2531,2685,2963,3303,3364,3611])
+    # python data/process_strayscanner_data.py --num_train=5 --basedir ./data/strayscanner/p22_7 --depth_bound2=0.2 --depth_bound1=0.7
+    train_index = np.array([278,309,332,352,410,521,547])
+    # val_index = np.array([270,331,411,550])
+    # test_index = np.array([111,269,290,309,320,390,400,543,577,593,598,618,626])
+    #
+    # # # python data/process_strayscanner_data.py --num_train=7 --basedir ./data/strayscanner/p23_7 --depth_bound2=0.2 --depth_bound1=0.7
+    # train_index = np.array([73, 90,137,169,306,474,545])
+    # val_index = np.array([75,168,544,624])
+    # test_index = np.array([30,72,79,117,130,160,175,244,274,287,308,460,463,510,520,620])
 
-    # # python data/process_strayscanner_data.py --num_train=5 --basedir ./data/strayscanner/meeting_room_5ver2 --depth_bound2=0.4 --depth_bound1=1
-    # train_index = np.array([0, 122,368,395,491])
-    # val_index = np.array([614,737,860,983])
-    # test_index = np.array([666,1106,1351,1474,1597,1720,1843,1966,2089,2212,2335,2458])
-
-    # # python data/process_strayscanner_data.py --num_train=5 --basedir ./data/strayscanner/pocari03_5ver2 --depth_bound2=0.4 --depth_bound1=1
-    # train_index = np.array([0,89,134,179,269])
-    # val_index = np.array([314,359,404,449])
-    # test_index = np.array([7,74,96,111,141,150,206,262,297,309,323,486])
-
-# python data/process_strayscanner_data.py --num_train=5 --basedir ./data/strayscanner/piano03_5ver2 --depth_bound2=0.4 --depth_bound1=1
-    # piano03_5ver2
-    # train_index = np.array([0,120,181,301,362])
-    # val_index = np.array([422,482,543,603])
-    # test_index = np.array([14,45,71,234,242,326,358,455,521,535,607,613])
-
-
-    # # python data/process_strayscanner_data.py --num_train=5 --basedir ./data/strayscanner/room01_5ver2 --depth_bound2=0.4 --depth_bound1=1
-    # #room01_ver2
-    # train_index = np.array([125,251,376,502,753])
-    # val_index = np.array([878,1004,1129,1255])
-    # test_index = np.array([46,123,340,378,415,712,814,942,999,1017,1223,1323])
-
-    # #trashcan01
-    # # train_index = np.array([149,1874,2471])
-    # # train_index = np.array([124,149,424,1874,2272,2471,2921])
-    # train_index = np.array([149,349,1874,1548,2471])
-    # val_index = np.array([2996,3021,3046,3071])
-    # test_index = np.array([721,877,1200,1476,1510,1542,1722,2355,2362,2707,2992])
+    # # python data/process_strayscanner_data.py --num_train=5 --basedir ./data/strayscanner/p23_5 --depth_bound2=0.2 --depth_bound1=0.7
+    # train_index = np.array([73,169,306,474,545])
+    # val_index = np.array([75,168,544,624])
+    # test_index = np.array([30,72,79,117,130,160,175,244,274,287,308,460,463,510,520,620])
 
 
     # all_index = np.arange(n)

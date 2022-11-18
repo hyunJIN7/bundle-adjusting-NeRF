@@ -47,8 +47,27 @@ class Dataset(base.Dataset):
             poses.append(T_WC)
         poses = torch.from_numpy(np.array(poses)).float()
         self.list = poses
+
         self.gt_pose = poses
         self.opti_pose = poses
+        # for GT data(optitrack)
+        gt_pose_fname = "{}/opti_odometry_train.txt".format(self.path)
+        gt_pose_file = os.path.join('./', gt_pose_fname)
+        if os.path.isfile(gt_pose_file):    # gt file exist
+            with open(gt_pose_file, "r") as f:  # frame.txt 읽어서
+                cam_frame_lines = f.readlines()
+            cam_gt_pose = []  # time r1x y z tx r2x y z ty r3x y z tz
+            for line in cam_frame_lines:
+                line_data_list = line.split(' ')
+                if len(line_data_list) == 0:
+                    continue
+                pose_raw = np.reshape(line_data_list[1:], (3, 4))
+                cam_gt_pose.append(pose_raw)
+            cam_gt_pose = torch.from_numpy(np.array(cam_gt_pose)).float()
+            self.opti_pose = cam_gt_pose
+        else: self.opti_pose = self.cam_pose
+
+
 
         # if subset and split != 'test': self.list = self.list[:subset] #train,val
         # preload dataset
@@ -90,7 +109,7 @@ class Dataset(base.Dataset):
 
     def get_all_optitrack_camera_poses(self,opt): # optitrack pose load
         pose_raw_all = [torch.tensor(f ,dtype=torch.float32) for f in self.opti_pose]
-        pose_canon_all = torch.stack([self.parse_raw_camera(opt, p) for p in pose_raw_all], dim=0)
+        pose_canon_all = torch.stack([self.parse_raw_camera_for_optitrack(opt, p) for p in pose_raw_all], dim=0)
         return pose_canon_all
 
     def __getitem__(self,idx):
@@ -174,5 +193,11 @@ class Dataset(base.Dataset):
         # # pose_flip = camera.pose(R=t3) #t3
         # pose_flip = camera.pose(R=t4) #t4
         pose = camera.pose.compose([pose_flip,pose_raw[:3]])  # [right, down, forward] , pose_raw[:3]=pose_flip=(3,4),(3,4)
+        pose = camera.pose.invert(pose)  #아마 c2w->w2c?
+        return pose
+
+    def parse_raw_camera_for_optitrack(self,opt,pose_raw):
+        pose_flip = camera.pose(R=torch.diag(torch.tensor([1,-1,-1])))
+        pose = camera.pose.compose([pose_flip,pose_raw[:3]])
         pose = camera.pose.invert(pose)  #아마 c2w->w2c?
         return pose
