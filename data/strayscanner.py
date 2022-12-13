@@ -201,3 +201,58 @@ class Dataset(base.Dataset):
         pose = camera.pose.compose([pose_flip,pose_raw[:3]])
         pose = camera.pose.invert(pose)  #아마 c2w->w2c?
         return pose
+
+    def parse_raw_camera_for_optitrack(self, opt, pose_raw):
+
+        #
+        t3 = torch.tensor([[0, 0, 1],
+                           [0, -1, 0],
+                           [1, 0, 0]])
+
+        t3 = torch.tensor([[0, 0, 1],
+                           [0, -1, 0],
+                           [1, 0, 0]])
+
+        t3 = torch.tensor([[0, 0, 1],
+                           [0, 1, 0],
+                           [1, 0, 0]])
+
+        #
+        # t3 = torch.tensor( [[1,0,0 ] ,
+        #                      [0,-1,0],
+        #                      [0,0,1]])
+
+        pose_flip = camera.pose(R=t3)  # t3
+        pose = camera.pose.compose([pose_flip, pose_raw[:3]])
+
+        angle = 150 * np.pi / 180
+        s = np.sin(angle)
+        c = np.cos(angle)
+        s = torch.from_numpy(np.array(s)).float()
+        c = torch.from_numpy(np.array(c)).float()
+
+        R_x = camera.angle_to_rotation_matrix((s * -1.2).sin(), "X")
+
+        angle = 200 * np.pi / 180
+        s = np.sin(angle)
+        c = np.cos(angle)
+        s = torch.from_numpy(np.array(s)).float()
+        c = torch.from_numpy(np.array(c)).float()
+
+        R_y = camera.angle_to_rotation_matrix((c * -0.5).asin(), "Y")
+
+        angle = 190 * np.pi / 180
+        s = np.sin(angle)
+        c = np.cos(angle)
+        s = torch.from_numpy(np.array(s)).float()
+        c = torch.from_numpy(np.array(c)).float()
+
+        R_z = camera.angle_to_rotation_matrix((s * -0.08).asin(), "Z")
+
+        pose_flip = camera.pose(R=R_x @ R_z @ R_y)  # R_y @ R_x@  # x,y 회전행렬 적용'
+
+        pose = camera.pose.compose([pose_flip, pose_raw[:3]])
+
+        pose = camera.pose.invert(pose)  # 아마 c2w->w2c?
+        return pose
+
