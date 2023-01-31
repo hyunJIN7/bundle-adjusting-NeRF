@@ -105,10 +105,18 @@ def process_stray_scanner(args, data, split='train'):
     train_val_index = np.linspace(0, n, num_train + num_val, endpoint=False, dtype=int)
     train_index = train_val_index[:-num_val]
     val_index = train_val_index[-num_val:]
-    # if random sampling
+
     test_index = np.delete(all_index, train_val_index)
-    test_index = np.random.choice(test_index, num_test, replace=False)
-    test_index.sort()
+    test_index= test_index[np.linspace(0, test_index.shape[0], num_test, endpoint=False, dtype=int)]
+    # if random sampling
+    # test_index = np.delete(all_index, train_val_index)
+    # test_index = np.random.choice(test_index, num_test, replace=False)
+    # test_index.sort()
+
+    # python data/process_strayscanner_data.py --num_train=5 --basedir ./data/strayscanner/labdesk --depth_bound2=0.2 --depth_bound1=0.7
+    train_index = np.array([0,61,150,401,1697,1759,2500,2562,2871,3395])
+    val_index = np.array([61,1697,2562,2871])
+    test_index = np.array([30,61,432,1389,1728,1914,2531,2685,2963,3303,3364,3611])
 
     # python data/process_strayscanner_data.py --num_train=5 --basedir ./data/strayscanner/p17_7 --depth_bound2=0.2 --depth_bound1=0.7
     # train_index = np.array([40,89,175,211,264,407,447])
