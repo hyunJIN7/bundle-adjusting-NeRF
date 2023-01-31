@@ -14,10 +14,10 @@ import skvideo.io
 import cv2
 import random
 
-# DEPTH_WIDTH = 256
-# DEPTH_HEIGHT = 192
+DEPTH_WIDTH = 256
+DEPTH_HEIGHT = 192
 RGB_WIDTH = 1920
-RGB_HEIGHT = 1440
+DEPTH_HEIGHT = 1440
 MAX_DEPTH = 20.0
 np.random.seed(0)
 
@@ -29,12 +29,10 @@ python data/process_strayscanner_data.py --num_train=7 --basedir ./data/straysca
 
 python data/process_strayscanner_data.py --num_train=10  --basedir ./data/strayscanner/a1_5 --depth_bound2=0.2 --depth_bound1=0.7
 
-conda activate StrayVisualizer-main
-python data/process_strayscanner_data.py --num_train=50  --basedir ./data/strayscanner/f_box --depth_bound2=0.2 --depth_bound1=0.7
-python data/process_strayscanner_data.py --num_train=10  --basedir ./data/strayscanner/tree --depth_bound2=0.2 --depth_bound1=0.7
-
+python data/process_strayscanner_data.py --num_train=10  --basedir ./data/strayscanner/a1_5 --depth_bound2=0.2 --depth_bound1=0.7
 
 """
+
 
 def config_parser():
     import configargparse
@@ -44,7 +42,7 @@ def config_parser():
                         help='input data directory')
     parser.add_argument("--num_train", type=int, default=120,
                         help='number of train data')
-    parser.add_argument("--num_test", type=int, default=15,
+    parser.add_argument("--num_test", type=int, default=12,
                         help='number of train data')
 
     parser.add_argument("--near_range", type=int, default=2,
@@ -58,30 +56,39 @@ def config_parser():
                         help='condi2 depth range')
     parser.add_argument("--depth_bound1", type=float, default=1,
                         help='condi1 depth range')
+
     return parser
 
+
+# def load_depth(path, confidence=None):
+#     depth_mm = np.array(Image.open(path))
+#     depth_m = depth_mm.astype(np.float32) / 1000.0
+#     return depth_m
 
 def load_depth(path, confidence=None):
     extension = os.path.splitext(path)[1]
     if extension == '.npy':
         depth_mm = np.load(path)
     elif extension == '.png':
-        #TODO : depth reshzpe
+        # TODO : depth reshzpe
         depth_mm = Image.open(path)
-        depth_mm = depth_mm.resize((RGB_WIDTH, RGB_HEIGHT))
+        depth_mm = depth_mm.resize((DEPTH_WIDTH, DEPTH_HEIGHT))
+
         depth_mm = np.array(depth_mm)
     depth_m = depth_mm.astype(np.float32) / 1000.0
     return depth_m
 
+
 def load_confidence(path):
-    #TODO : confidence reshape
-    confi = Image.open(path)
-    confi = confi.resize((RGB_WIDTH, RGB_HEIGHT))
-    return np.array(confi) #np.array(Image.open(path))
+    # TODO : confidence reshape
+
+    return np.array(Image.open(path))
+
 
 def make_dir(path):
     if not os.path.exists(path):
         os.mkdir(path)
+
 
 def process_stray_scanner(args, data, split='train'):
     rgb_path = "{}/rgb_{}".format(args.basedir, split)
@@ -98,7 +105,7 @@ def process_stray_scanner(args, data, split='train'):
     n = data['odometry'].shape[0]
     num_train = args.num_train
     num_val = 4
-    num_test = args.num_test
+    num_test = 1  # args.num_test
 
     all_index = np.arange(n)
     train_val_test_index = np.linspace(0, n, num_train + num_val, endpoint=False, dtype=int)
@@ -250,9 +257,9 @@ def main(args):
         depths.append(depth)
 
         # rgb image
-        # rgb = Image.fromarray(rgb)
-        # rgb = rgb.resize((DEPTH_WIDTH, DEPTH_HEIGHT))
-        rgb = np.array(Image.fromarray(rgb))
+        rgb = Image.fromarray(rgb)
+        rgb = rgb.resize((DEPTH_WIDTH, DEPTH_HEIGHT))
+        rgb = np.array(rgb)
         rgbs.append(rgb)
         # skvideo.io.vwrite(os.path.join(rgb_img_path, str(i).zfill(5) + '.jpg'), rgb)
 

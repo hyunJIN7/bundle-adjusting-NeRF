@@ -19,7 +19,8 @@ import skvideo.io
 
 class Dataset(base.Dataset):
     def __init__(self,opt,split="train",subset=None):
-        self.raw_H,self.raw_W = 192,256
+        self.raw_H,self.raw_W = 1440,1920
+        # self.raw_H,self.raw_W = 192,256
         super().__init__(opt,split)
         self.root = opt.data.root or "data/strayscanner"
         self.path = "{}/{}".format(self.root,opt.data.scene)
@@ -65,7 +66,7 @@ class Dataset(base.Dataset):
                 cam_gt_pose.append(pose_raw)
             cam_gt_pose = torch.from_numpy(np.array(cam_gt_pose)).float()
             self.opti_pose = cam_gt_pose
-        else: self.opti_pose = self.cam_pose
+        # else: self.opti_pose = self.cam_pose
 
 
 
@@ -193,13 +194,13 @@ class Dataset(base.Dataset):
         # # pose_flip = camera.pose(R=t3) #t3
         # pose_flip = camera.pose(R=t4) #t4
         pose = camera.pose.compose([pose_flip,pose_raw[:3]])  # [right, down, forward] , pose_raw[:3]=pose_flip=(3,4),(3,4)
-        pose = camera.pose.invert(pose)  #아마 c2w->w2c?
+        pose = camera.pose.invert(pose)
         return pose
 
     def parse_raw_camera_for_optitrack(self,opt,pose_raw):
         pose_flip = camera.pose(R=torch.diag(torch.tensor([1,-1,-1])))
         pose = camera.pose.compose([pose_flip,pose_raw[:3]])
-        pose = camera.pose.invert(pose)  #아마 c2w->w2c?
+        pose = camera.pose.invert(pose)  #w2c -> c2w
         return pose
 
     def parse_raw_camera_for_optitrack(self, opt, pose_raw):

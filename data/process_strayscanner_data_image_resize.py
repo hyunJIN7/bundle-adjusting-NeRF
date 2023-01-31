@@ -14,27 +14,22 @@ import skvideo.io
 import cv2
 import random
 
-# DEPTH_WIDTH = 256
-# DEPTH_HEIGHT = 192
-RGB_WIDTH = 1920
-RGB_HEIGHT = 1440
+
+DEPTH_WIDTH = 256
+DEPTH_HEIGHT = 192
 MAX_DEPTH = 20.0
 np.random.seed(0)
 
 """
 conda activate StrayVisualizer-main
-python data/process_strayscanner_data.py --num_train=3 --basedir ./data/strayscanner/lab_computer_3 --depth_bound2=0.2 --depth_bound1=0.7
-python data/process_strayscanner_data.py --num_train=5 --basedir ./data/strayscanner/lab_computer_5 --depth_bound2=0.2 --depth_bound1=0.7
-python data/process_strayscanner_data.py --num_train=7 --basedir ./data/strayscanner/trashcan01_7 --depth_bound2=0.2 --depth_bound1=0.7
 
-python data/process_strayscanner_data.py --num_train=10  --basedir ./data/strayscanner/a1_5 --depth_bound2=0.2 --depth_bound1=0.7
+python data/process_strayscanner_data_image_resize.py --num_train=20  --basedir ./data/strayscanner/meeting_room --depth_bound2=0.2 --depth_bound1=0.7
 
-conda activate StrayVisualizer-main
-python data/process_strayscanner_data.py --num_train=50  --basedir ./data/strayscanner/f_box --depth_bound2=0.2 --depth_bound1=0.7
-python data/process_strayscanner_data.py --num_train=10  --basedir ./data/strayscanner/tree --depth_bound2=0.2 --depth_bound1=0.7
+python data/process_strayscanner_data_image_resize.py --num_train=20 --num_test= 10 --basedir ./data/strayscanner/test1 --depth_bound2=0.2 --depth_bound1=0.7
 
 
 """
+
 
 def config_parser():
     import configargparse
@@ -44,7 +39,7 @@ def config_parser():
                         help='input data directory')
     parser.add_argument("--num_train", type=int, default=120,
                         help='number of train data')
-    parser.add_argument("--num_test", type=int, default=15,
+    parser.add_argument("--num_test", type=int, default=12,
                         help='number of train data')
 
     parser.add_argument("--near_range", type=int, default=2,
@@ -58,32 +53,32 @@ def config_parser():
                         help='condi2 depth range')
     parser.add_argument("--depth_bound1", type=float, default=1,
                         help='condi1 depth range')
+
     return parser
 
+# def load_depth(path, confidence=None):
+#     depth_mm = np.array(Image.open(path))
+#     depth_m = depth_mm.astype(np.float32) / 1000.0
+#     return depth_m
 
 def load_depth(path, confidence=None):
     extension = os.path.splitext(path)[1]
     if extension == '.npy':
         depth_mm = np.load(path)
     elif extension == '.png':
-        #TODO : depth reshzpe
-        depth_mm = Image.open(path)
-        depth_mm = depth_mm.resize((RGB_WIDTH, RGB_HEIGHT))
-        depth_mm = np.array(depth_mm)
+        depth_mm = np.array(Image.open(path))
     depth_m = depth_mm.astype(np.float32) / 1000.0
     return depth_m
 
+
 def load_confidence(path):
-    #TODO : confidence reshape
-    confi = Image.open(path)
-    confi = confi.resize((RGB_WIDTH, RGB_HEIGHT))
-    return np.array(confi) #np.array(Image.open(path))
+    return np.array(Image.open(path))
 
 def make_dir(path):
     if not os.path.exists(path):
         os.mkdir(path)
 
-def process_stray_scanner(args, data, split='train'):
+def process_stray_scanner(args, data,split='train'):
     rgb_path = "{}/rgb_{}".format(args.basedir, split)
     depth_path = "{}/depth_{}".format(args.basedir, split)
     confidence_path = "{}/confidence_{}".format(args.basedir, split)
@@ -100,14 +95,15 @@ def process_stray_scanner(args, data, split='train'):
     num_val = 4
     num_test = args.num_test
 
+
     all_index = np.arange(n)
-    train_val_test_index = np.linspace(0, n, num_train + num_val, endpoint=False, dtype=int)
-    train_val_index = np.linspace(0, n, num_train + num_val, endpoint=False, dtype=int)
+    train_val_test_index = np.linspace(0, n, num_train+num_val, endpoint=False, dtype=int)
+    train_val_index = np.linspace(0, n, num_train+num_val, endpoint=False, dtype=int)
     train_index = train_val_index[:-num_val]
     val_index = train_val_index[-num_val:]
     # if random sampling
-    test_index = np.delete(all_index, train_val_index)
-    test_index = np.random.choice(test_index, num_test, replace=False)
+    test_index = np.delete(all_index,train_val_index)
+    test_index = np.random.choice(test_index,num_test,replace=False)
     test_index.sort()
 
     # python data/process_strayscanner_data.py --num_train=5 --basedir ./data/strayscanner/p17_7 --depth_bound2=0.2 --depth_bound1=0.7
@@ -130,6 +126,7 @@ def process_stray_scanner(args, data, split='train'):
     # val_index = np.array([75,168,544,624])
     # test_index = np.array([30,72,79,117,130,160,175,244,274,287,308,460,463,510,520,620])
 
+
     # all_index = np.arange(n)
     # train_val_test_index = np.linspace(0, n, num_train+num_val+num_test, endpoint=False, dtype=int)
     # train_val_index=train_val_test_index[:-num_test]
@@ -139,6 +136,7 @@ def process_stray_scanner(args, data, split='train'):
     # # if random sampling
     # test_index = np.delete(all_index,train_val_index)
     # test_index = np.random.choice(test_index,num_test,replace=False)
+
 
     rgbs = np.array(data['rgb'])
     depths = np.array(data['depth'])
@@ -165,13 +163,13 @@ def process_stray_scanner(args, data, split='train'):
         confidences = confidences[train_val_index]
         poses = poses[train_val_index]
 
-    nears, fars = precompute_depth_sampling(args.near_range, args.far_range, depths, confidences)  # (N,H,W)
+    nears, fars = precompute_depth_sampling(args.near_range,args.far_range, depths, confidences) #(N,H,W)
 
     pose_fname = "{}/odometry_{}.csv".format(args.basedir, split)
-    pose_file = open(pose_fname, 'w')  # ,newline=','
+    pose_file = open(pose_fname,'w')#,newline=','
     wr = csv.writer(pose_file)
-    for i, (rgb, depth, confidence, pose, near, far) in enumerate(zip(rgbs, depths, confidences, poses, nears, fars)):
-        # pose :  timestamp, frame, x, y, z, qx, qy, qz, qw
+    for i, (rgb, depth, confidence, pose,near,far) in enumerate(zip(rgbs, depths,confidences,poses,nears,fars)):
+        #pose :  timestamp, frame, x, y, z, qx, qy, qz, qw
         skvideo.io.vwrite(os.path.join(rgb_path, str(int(pose[1])).zfill(5) + '.png'), rgb)
         np.save(os.path.join(depth_path, str(int(pose[1])).zfill(5) + '.npy'), depth)
         np.save(os.path.join(confidence_path, str(int(pose[1])).zfill(5) + '.npy'), confidence)
@@ -181,41 +179,42 @@ def process_stray_scanner(args, data, split='train'):
     pose_file.close()
 
 
-def precompute_depth_sampling(origin_near, origin_far, depth, confidence):
-    # TODO : 지금 기준은 confidence , 성능 구리면 depth 값 기준으로도 더 조건 추가 4.5 이상이면 해보고 별로면
+
+def precompute_depth_sampling(origin_near,origin_far,depth,confidence):
+    #TODO : 지금 기준은 confidence , 성능 구리면 depth 값 기준으로도 더 조건 추가 4.5 이상이면 해보고 별로면
     depth_min, depth_max = origin_near, origin_far
     # [N,H,W]
     depth = torch.tensor(depth)
     confidence = torch.tensor(confidence)
 
-    depth = depth[..., None]  # [N,H,W,1]
-    confidence = confidence[..., None]  # [N,H,W,1]
-    near = torch.ones_like(depth)  # [N,H,W,1]
+    depth = depth[...,None]  #[N,H,W,1]
+    confidence = confidence[..., None] #[N,H,W,1]
+    near = torch.ones_like(depth) #[N,H,W,1]
     far = torch.ones_like(depth)
 
-    condi2 = confidence[..., 0] == 2  # [N,H,W]
+    condi2 = confidence[..., 0] == 2 #[N,H,W]
     bound2 = args.depth_bound2
-    near[condi2] = torch.clamp(depth[condi2] - bound2, min=0)
-    far[condi2] = depth[condi2] + bound2
+    near[condi2]= torch.clamp(depth[condi2]-bound2 ,min=0)
+    far[condi2] = depth[condi2]+bound2
 
     condi1 = confidence[..., 0] == 1
     bound1 = args.depth_bound1
-    near[condi1] = torch.clamp(depth[condi1] - bound1, min=0)
-    far[condi1] = depth[condi1] + bound1
+    near[condi1] = torch.clamp(depth[condi1]-bound1 ,min=0)
+    far[condi1] = depth[condi1]+bound1
 
     condi0 = confidence[..., 0] == 0
     if args.use_confi0_depth > 0:
         # consider depth
-        near[condi0] = 2  # torch.clamp(depth[condi0]-0.3,max=4)
-        far[condi0] = torch.clamp(depth[condi0] + 0.3, min=depth_max)
+        near[condi0] = 2 #torch.clamp(depth[condi0]-0.3,max=4)
+        far[condi0] = torch.clamp(depth[condi0]+0.3,min=depth_max)
     else:
         # near = 4
-        near[condi0] = 4  # torch.clamp(depth[condi0]+0.3,min=4)
-        far[condi0] = torch.clamp(depth[condi0] + 0.3, min=depth_max)
+        near[condi0]= 4 #torch.clamp(depth[condi0]+0.3,min=4)
+        far[condi0] = torch.clamp(depth[condi0]+0.3,min=depth_max)
 
-    test_near, test_far = near[..., 0], far[..., 0]
-    test_depth = depth[..., 0]
-    return near[..., 0], far[..., 0]  # [B,H*W]
+    test_near , test_far = near[...,0],far[...,0]
+    test_depth = depth[...,0]
+    return near[...,0],far[...,0]  #[B,H*W]
 
 
 def main(args):
@@ -231,7 +230,7 @@ def main(args):
     depth_frames = [f for f in depth_frames if '.npy' in f or '.png' in f]
     data['depth_frames'] = depth_frames
 
-    rgbs = []
+    rgbs=[]
     confidences = []
     depths = []
     video_path = os.path.join(args.basedir, 'rgb.mp4')
@@ -239,30 +238,30 @@ def main(args):
     rgb_img_path = os.path.join(args.basedir, 'rgb')
     # make_dir(rgb_img_path)
     for i, (T_WC, rgb) in enumerate(zip(data['odometry'], video)):
-        # load confidence
+        #load confidence
         confidence = load_confidence(os.path.join(args.basedir, 'confidence', f'{i:06}.png'))
         confidences.append(confidence)
 
-        # load depth
+        #load depth
         print(f"Integrating frame {i:06}", end='\r')
         depth_path = data['depth_frames'][i]
         depth = load_depth(depth_path)
         depths.append(depth)
 
-        # rgb image
-        # rgb = Image.fromarray(rgb)
-        # rgb = rgb.resize((DEPTH_WIDTH, DEPTH_HEIGHT))
-        rgb = np.array(Image.fromarray(rgb))
+        #rgb image
+        rgb = Image.fromarray(rgb)
+        rgb = rgb.resize((DEPTH_WIDTH, DEPTH_HEIGHT))
+        rgb = np.array(rgb)
         rgbs.append(rgb)
         # skvideo.io.vwrite(os.path.join(rgb_img_path, str(i).zfill(5) + '.jpg'), rgb)
 
     data['confidence'] = confidences
-    data['depth'] = depths
-    data['rgb'] = rgbs
+    data['depth']=depths
+    data['rgb']=rgbs
 
-    split = ['train', 'val', 'test']  # conda install pytorch torchvision torchaudio cudatoolkit=11.3 -c pytorch
+    split = ['train', 'val', 'test'] # conda install pytorch torchvision torchaudio cudatoolkit=11.3 -c pytorch
     for mode in split:
-        process_stray_scanner(args, data, mode)
+        process_stray_scanner(args,data,mode)
 
 
 if __name__ == '__main__':

@@ -37,6 +37,9 @@ class Pose():
         # invert a camera pose , pose:(1,3,4)
         R,t = pose[...,:3],pose[...,3:] # R : (1,3,3)
         R_inv = R.inverse() if use_inverse else R.transpose(-1,-2)
+        # if use_inverse:
+        #     R_inv = R.inverse()
+        # else : R.transpose(-1,-2)
         t_inv = (-R_inv@t)[...,0]
         pose_inv = self(R=R_inv,t=t_inv)
         return pose_inv
@@ -212,10 +215,9 @@ def cam2img(X,cam_intr):
     return X@cam_intr.transpose(-1,-2)
 def img2cam(X,cam_intr):
     return X@cam_intr.inverse().transpose(-1,-2)
-def cam2world(X,pose): #x 가 center ?..
+def cam2world(X,pose):
     X_hom = to_hom(X)
     pose_inv = Pose().invert(pose)
-
     return X_hom@pose_inv.transpose(-1,-2)
 
 def angle_to_rotation_matrix(a,axis):
