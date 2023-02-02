@@ -7,7 +7,7 @@ import os
 import numpy as np
 # import imageio
 # import json
-from transforms3d.quaternions import quat2mat
+# from transforms3d.quaternions import quat2mat
 # from skimage import img_as_ubyte
 from PIL import Image
 import skvideo.io
@@ -24,15 +24,8 @@ np.random.seed(0)
 
 """
 conda activate StrayVisualizer-main
-python data/process_strayscanner_data.py --num_train=3 --basedir ./data/strayscanner/lab_computer_3 --depth_bound2=0.2 --depth_bound1=0.7
-python data/process_strayscanner_data.py --num_train=5 --basedir ./data/strayscanner/lab_computer_5 --depth_bound2=0.2 --depth_bound1=0.7
-python data/process_strayscanner_data.py --num_train=7 --basedir ./data/strayscanner/trashcan01_7 --depth_bound2=0.2 --depth_bound1=0.7
-
-python data/process_strayscanner_data.py --num_train=10  --basedir ./data/strayscanner/a1_5 --depth_bound2=0.2 --depth_bound1=0.7
-
 conda activate StrayVisualizer-main
-python data/process_strayscanner_data.py --num_train=50  --basedir ./data/strayscanner/f_box --depth_bound2=0.2 --depth_bound1=0.7
-python data/process_strayscanner_data.py --num_train=10  --basedir ./data/strayscanner/tree --depth_bound2=0.2 --depth_bound1=0.7
+python data/process_strayscanner_data_for_dsnerf.py --num_train=10  --basedir ./data/strayscanner/test1_ds
 
 
 """
@@ -71,6 +64,7 @@ def process_stray_scanner(args, data, split='train'):
     rgb_path = "{}/images".format(basedir)
     sparse_path = "{}/sparse".format(basedir)
 
+    make_dir(basedir)
     make_dir(rgb_path)
     make_dir(sparse_path)
 
@@ -121,10 +115,9 @@ def process_stray_scanner(args, data, split='train'):
 
         T_WC = np.eye(4)
         T_WC[:3, :3] = Rotation.from_quat(pose[5:]).as_matrix()
-        T_WC[:3, 3] =  np.reshape(line[2:5],(3,1))
+        T_WC[:3, 3] = pose[2:5]
         c2w = np.linalg.inv(T_WC)
-        T_CW = Rotation.as_matrix(c2w[:3, :3])
-        quat = Rotation.from_matrix(T_CW).as_quat() # qx, qy, qz, qw
+        quat = Rotation.from_matrix(c2w[:3, :3]).as_quat()
         w = quat[-1]
         quat[1:] = quat[:3]
         quat[0] = w  # qw, qx, qy, qz
@@ -137,15 +130,13 @@ def process_stray_scanner(args, data, split='train'):
         new_pose = np.zeros(7)
         new_pose[:4] = quat
         new_pose[4:] = t
-        line.append(str(j) for j in new_pose)
+        for j in new_pose : line.append(str(j))
         line.append(str(1)) # camera_id
         line.append( str(int(pose[1])).zfill(5) + '.png') # name
         lines.append(' '.join(line) + '\n' + '\n')
 
     with open(pose_file, 'w') as f:
         f.writelines(lines)
-
-
 
 def main(args):
     # data load
@@ -172,7 +163,6 @@ def main(args):
         rgb = np.array(Image.fromarray(rgb))
         rgbs.append(rgb)
     data['rgb'] = rgbs
-
 
     split = ['train', 'test']
     for mode in split:
