@@ -7,12 +7,13 @@ import os
 import numpy as np
 # import imageio
 # import json
-# from transforms3d.quaternions import quat2mat
+from transforms3d.quaternions import quat2mat
 # from skimage import img_as_ubyte
 from PIL import Image
 import skvideo.io
 import cv2
 import random
+from scipy.spatial.transform import Rotation
 
 # DEPTH_WIDTH = 256
 # DEPTH_HEIGHT = 192
@@ -64,9 +65,28 @@ def make_dir(path):
     if not os.path.exists(path):
         os.mkdir(path)
 
+
 def process_stray_scanner(args, data, split='train'):
-    rgb_path = "{}/rgb_{}".format(args.basedir, split)
+    basedir = "{}/{}".format(args.basedir,split)
+    rgb_path = "{}/images".format(basedir)
+    sparse_path = "{}/sparse".format(basedir)
+
     make_dir(rgb_path)
+    make_dir(sparse_path)
+
+    # #cameras.txt
+    H, W = data['rgb'][0].shape[:-1]
+    intrinsic = data['intrinsics']
+    camera_file = open(os.path.join(sparse_path, 'cameras.txt'), 'w')
+    # camera_id, model, W, H , fx, fy , cx ,cy
+    line = "1 PINHOLE " + str(W) + ' ' + str(H) + ' ' + str(intrinsic[0][0]) + ' ' + str(intrinsic[1][1]) + ' ' + str(
+        intrinsic[0][2]) + ' ' + str(intrinsic[1][2])
+    camera_file.write(line)
+    camera_file.close()
+
+    #points3D.txt
+    points3D_file = open(os.path.join(sparse_path, 'points3D.txt'),'w')
+    points3D_file.close()
 
     n = data['odometry'].shape[0]
     num_train = args.num_train
@@ -79,57 +99,52 @@ def process_stray_scanner(args, data, split='train'):
     val_index = train_val_index[-num_val:]
     test_index = np.delete(all_index, train_val_index)
     test_index= test_index[np.linspace(0, test_index.shape[0], num_test, endpoint=False, dtype=int)]
-    train_test_index = np.hstack((train_index,test_index))
-    train_test_index.sort()
-
+    # train_test_index = np.hstack((train_index,test_index))
+    # train_test_index.sort()
 
     rgbs = np.array(data['rgb'])
     poses = np.array(data['odometry'])
-    pose_fname = "{}/odometry_{}.csv".format(args.basedir, split)
-    pose_file = open(pose_fname, 'w')  # ,newline=','
-    wr = csv.writer(pose_file)
-    for i, (rgb,pose,) in enumerate(zip(rgbs,poses)):
-        # pose :  timestamp, frame, x, y, z, qx, qy, qz, qw
+    main_index = train_index if split == 'train'else test_index
+    rgbs = rgbs[main_index]
+    poses = poses[main_index]
+
+
+    pose_file = "{}/images.txt".format(sparse_path)
+    lines = []
+    for i, (rgb,pose) in enumerate(zip(rgbs,poses)):
         skvideo.io.vwrite(os.path.join(rgb_path, str(int(pose[1])).zfill(5) + '.png'), rgb)
-        wr.writerow(pose)
-    pose_file.close()
 
+        # pose :  timestamp, frame, x, y, z, qx, qy, qz, qw
+        skvideo.io.vwrite(os.path.join(rgb_path, str(int(i)).zfill(5) + '.png'), rgb)
+        # pose :  timestamp, frame, x, y, z, qx, qy, qz, qw
+        # image_id(1,2,3,...),  qw, qx, qy, qz ,tx, ty, tz , camera_id, name(file name)
 
-def precompute_depth_sampling(origin_near, origin_far, depth, confidence):
-    # TODO : 지금 기준은 confidence , 성능 구리면 depth 값 기준으로도 더 조건 추가 4.5 이상이면 해보고 별로면
-    depth_min, depth_max = origin_near, origin_far
-    # [N,H,W]
-    depth = torch.tensor(depth)
-    confidence = torch.tensor(confidence)
+        T_WC = np.eye(4)
+        T_WC[:3, :3] = Rotation.from_quat(pose[5:]).as_matrix()
+        T_WC[:3, 3] =  np.reshape(line[2:5],(3,1))
+        c2w = np.linalg.inv(T_WC)
+        T_CW = Rotation.as_matrix(c2w[:3, :3])
+        quat = Rotation.from_matrix(T_CW).as_quat() # qx, qy, qz, qw
+        w = quat[-1]
+        quat[1:] = quat[:3]
+        quat[0] = w  # qw, qx, qy, qz
 
-    depth = depth[..., None]  # [N,H,W,1]
-    confidence = confidence[..., None]  # [N,H,W,1]
-    near = torch.ones_like(depth)  # [N,H,W,1]
-    far = torch.ones_like(depth)
+        t = np.reshape(c2w[:3, 3], (1,3)) # tx, ty ,tz
 
-    condi2 = confidence[..., 0] == 2  # [N,H,W]
-    bound2 = args.depth_bound2
-    near[condi2] = torch.clamp(depth[condi2] - bound2, min=0)
-    far[condi2] = depth[condi2] + bound2
+        line = []
+        line.append(str(i+1))  #이미지 번호 바꿀까????? 원본 번호로 해도 되지 않을까
 
-    condi1 = confidence[..., 0] == 1
-    bound1 = args.depth_bound1
-    near[condi1] = torch.clamp(depth[condi1] - bound1, min=0)
-    far[condi1] = depth[condi1] + bound1
+        new_pose = np.zeros(7)
+        new_pose[:4] = quat
+        new_pose[4:] = t
+        line.append(str(j) for j in new_pose)
+        line.append(str(1)) # camera_id
+        line.append( str(int(pose[1])).zfill(5) + '.png') # name
+        lines.append(' '.join(line) + '\n' + '\n')
 
-    condi0 = confidence[..., 0] == 0
-    if args.use_confi0_depth > 0:
-        # consider depth
-        near[condi0] = 2  # torch.clamp(depth[condi0]-0.3,max=4)
-        far[condi0] = torch.clamp(depth[condi0] + 0.3, min=depth_max)
-    else:
-        # near = 4
-        near[condi0] = 4  # torch.clamp(depth[condi0]+0.3,min=4)
-        far[condi0] = torch.clamp(depth[condi0] + 0.3, min=depth_max)
+    with open(pose_file, 'w') as f:
+        f.writelines(lines)
 
-    test_near, test_far = near[..., 0], far[..., 0]
-    test_depth = depth[..., 0]
-    return near[..., 0], far[..., 0]  # [B,H*W]
 
 
 def main(args):
@@ -158,7 +173,11 @@ def main(args):
         rgbs.append(rgb)
     data['rgb'] = rgbs
 
-    process_stray_scanner(args, data)
+
+    split = ['train', 'test']
+    for mode in split:
+        process_stray_scanner(args,data,mode)
+
 
 if __name__ == '__main__':
     parser = config_parser()
