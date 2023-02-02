@@ -27,7 +27,7 @@ python data/process_strayscanner_data.py --num_train=10  --basedir ./data/strays
 
 conda activate StrayVisualizer-main
 python data/process_strayscanner_data.py --num_train=50  --basedir ./data/strayscanner/f_box --depth_bound2=0.2 --depth_bound1=0.7
-python data/process_strayscanner_data.py --num_train=10  --basedir ./data/strayscanner/o17 --depth_bound2=0.2 --depth_bound1=0.7
+python data/process_strayscanner_data.py --num_train=10  --basedir ./data/strayscanner/iphone --depth_bound2=0.2 --depth_bound1=0.7
 
 
 """

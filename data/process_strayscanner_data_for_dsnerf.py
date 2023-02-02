@@ -63,10 +63,13 @@ def process_stray_scanner(args, data, split='train'):
     basedir = "{}/{}".format(args.basedir,split)
     rgb_path = "{}/images".format(basedir)
     sparse_path = "{}/sparse".format(basedir)
+    output_path = "{}/output".format(basedir)
 
     make_dir(basedir)
     make_dir(rgb_path)
     make_dir(sparse_path)
+    make_dir(output_path)
+
 
     # #cameras.txt
     H, W = data['rgb'][0].shape[:-1]
@@ -109,10 +112,7 @@ def process_stray_scanner(args, data, split='train'):
         skvideo.io.vwrite(os.path.join(rgb_path, str(int(pose[1])).zfill(5) + '.png'), rgb)
 
         # pose :  timestamp, frame, x, y, z, qx, qy, qz, qw
-        skvideo.io.vwrite(os.path.join(rgb_path, str(int(i)).zfill(5) + '.png'), rgb)
-        # pose :  timestamp, frame, x, y, z, qx, qy, qz, qw
         # image_id(1,2,3,...),  qw, qx, qy, qz ,tx, ty, tz , camera_id, name(file name)
-
         T_WC = np.eye(4)
         T_WC[:3, :3] = Rotation.from_quat(pose[5:]).as_matrix()
         T_WC[:3, 3] = pose[2:5]
