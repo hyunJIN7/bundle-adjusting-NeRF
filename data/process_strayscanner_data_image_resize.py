@@ -25,7 +25,7 @@ conda activate StrayVisualizer-main
 
 python data/process_strayscanner_data_image_resize.py --num_train=20  --basedir ./data/strayscanner/meeting_room --depth_bound2=0.2 --depth_bound1=0.7
 
-python data/process_strayscanner_data_image_resize.py --num_train=20 --num_test= 10 --basedir ./data/strayscanner/test1 --depth_bound2=0.2 --depth_bound1=0.7
+python data/process_strayscanner_data_image_resize.py --num_train=550 --depth_bound2=0.2 --depth_bound1=0.7 --basedir ./data/strayscanner/x_5 
 
 
 """
@@ -37,9 +37,9 @@ def config_parser():
 
     parser.add_argument("--basedir", type=str, default='./data/strayscanner/computer',
                         help='input data directory')
-    parser.add_argument("--num_train", type=int, default=120,
+    parser.add_argument("--num_train", type=int, default=5,
                         help='number of train data')
-    parser.add_argument("--num_test", type=int, default=12,
+    parser.add_argument("--num_test", type=int, default=20,
                         help='number of train data')
 
     parser.add_argument("--near_range", type=int, default=2,
@@ -96,47 +96,30 @@ def process_stray_scanner(args, data,split='train'):
     num_test = args.num_test
 
 
-    all_index = np.arange(n)
-    train_val_test_index = np.linspace(0, n, num_train+num_val, endpoint=False, dtype=int)
-    train_val_index = np.linspace(0, n, num_train+num_val, endpoint=False, dtype=int)
-    train_index = train_val_index[:-num_val]
-    val_index = train_val_index[-num_val:]
-    # if random sampling
-    test_index = np.delete(all_index,train_val_index)
-    test_index = np.random.choice(test_index,num_test,replace=False)
-    test_index.sort()
-
-    # python data/process_strayscanner_data.py --num_train=5 --basedir ./data/strayscanner/p17_7 --depth_bound2=0.2 --depth_bound1=0.7
-    # train_index = np.array([40,89,175,211,264,407,447])
-    # val_index = np.array([41,88,174,210,265])
-    # test_index = np.array([0,36,46,67,76,93,106,118,148,164,188,208,219,238,248,263])
-
-    # python data/process_strayscanner_data.py --num_train=5 --basedir ./data/strayscanner/p22_7 --depth_bound2=0.2 --depth_bound1=0.7
-    # train_index = np.array([278,309,332,352,410,521,547])
-    # val_index = np.array([270,331,411,550])
-    # test_index = np.array([111,269,290,309,320,390,400,543,577,593,598,618,626])
-    #
-    # # # python data/process_strayscanner_data.py --num_train=7 --basedir ./data/strayscanner/p23_7 --depth_bound2=0.2 --depth_bound1=0.7
-    # train_index = np.array([73, 90,137,169,306,474,545])
-    # val_index = np.array([75,168,544,624])
-    # test_index = np.array([30,72,79,117,130,160,175,244,274,287,308,460,463,510,520,620])
-
-    # # python data/process_strayscanner_data.py --num_train=5 --basedir ./data/strayscanner/p23_5 --depth_bound2=0.2 --depth_bound1=0.7
-    # train_index = np.array([73,169,306,474,545])
-    # val_index = np.array([75,168,544,624])
-    # test_index = np.array([30,72,79,117,130,160,175,244,274,287,308,460,463,510,520,620])
-
-
     # all_index = np.arange(n)
-    # train_val_test_index = np.linspace(0, n, num_train+num_val+num_test, endpoint=False, dtype=int)
-    # train_val_index=train_val_test_index[:-num_test]
+    # train_val_test_index = np.linspace(0, n, num_train+num_val, endpoint=False, dtype=int)
+    # train_val_index = np.linspace(0, n, num_train+num_val, endpoint=False, dtype=int)
     # train_index = train_val_index[:-num_val]
     # val_index = train_val_index[-num_val:]
-    # test_index = train_val_test_index[-num_test:]
+    # test_index = np.delete(all_index, train_val_index)
+    # test_index= test_index[np.linspace(0, test_index.shape[0], num_test, endpoint=False, dtype=int)]
     # # if random sampling
-    # test_index = np.delete(all_index,train_val_index)
-    # test_index = np.random.choice(test_index,num_test,replace=False)
+    # # test_index = np.delete(all_index,train_val_index)
+    # # test_index = np.random.choice(test_index,num_test,replace=False)
+    # # test_index.sort()
 
+    """
+    conda activate StrayVisualizer-main    
+ 
+    python data/process_strayscanner_data_image_resize.py --depth_bound2=0.2 --depth_bound1=0.7 --basedir ./data/strayscanner/y_5    
+    """
+    train_index = np.array([0,202,467,772,904])
+    val_index = np.array([10,210,470,780])
+    all_index = np.arange(n)
+    train_val = np.hstack([train_index,val_index])
+    train_val.sort()
+    test_index = np.delete(all_index, train_val)
+    test_index= test_index[np.linspace(0, test_index.shape[0], num_test, endpoint=False, dtype=int)]
 
     rgbs = np.array(data['rgb'])
     depths = np.array(data['depth'])
@@ -157,11 +140,11 @@ def process_stray_scanner(args, data,split='train'):
         depths = depths[test_index]
         confidences = confidences[test_index]
         poses = poses[test_index]
-    else:
-        rgbs = rgbs[train_val_index]
-        depths = depths[train_val_index]
-        confidences = confidences[train_val_index]
-        poses = poses[train_val_index]
+    # else:
+    #     rgbs = rgbs[train_val_index]
+    #     depths = depths[train_val_index]
+    #     confidences = confidences[train_val_index]
+    #     poses = poses[train_val_index]
 
     nears, fars = precompute_depth_sampling(args.near_range,args.far_range, depths, confidences) #(N,H,W)
 

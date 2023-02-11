@@ -19,8 +19,8 @@ import skvideo.io
 
 class Dataset(base.Dataset):
     def __init__(self,opt,split="train",subset=None):
-        self.raw_H,self.raw_W = 1440,1920
-        # self.raw_H,self.raw_W = 192,256
+        # self.raw_H,self.raw_W = 1440,1920
+        self.raw_H,self.raw_W = 192,256
         super().__init__(opt,split)
         self.root = opt.data.root or "data/strayscanner"
         self.path = "{}/{}".format(self.root,opt.data.scene)
@@ -51,10 +51,13 @@ class Dataset(base.Dataset):
 
         self.gt_pose = poses
         self.opti_pose = poses
+        self.use_opti = False
+
         # for GT data(optitrack)
         gt_pose_fname = "{}/opti_odometry_train.txt".format(self.path)
         gt_pose_file = os.path.join('./', gt_pose_fname)
         if os.path.isfile(gt_pose_file):    # gt file exist
+            self.use_opti = True
             with open(gt_pose_file, "r") as f:  # frame.txt 읽어서
                 cam_frame_lines = f.readlines()
             cam_gt_pose = []  # time r1x y z tx r2x y z ty r3x y z tz
@@ -110,7 +113,10 @@ class Dataset(base.Dataset):
 
     def get_all_optitrack_camera_poses(self,opt): # optitrack pose load
         pose_raw_all = [torch.tensor(f ,dtype=torch.float32) for f in self.opti_pose]
-        pose_canon_all = torch.stack([self.parse_raw_camera_for_optitrack(opt, p) for p in pose_raw_all], dim=0)
+        if self.use_opti:
+            pose_canon_all = torch.stack([self.parse_raw_camera_for_optitrack(opt, p) for p in pose_raw_all], dim=0)
+        else :
+            pose_canon_all = torch.stack([self.parse_raw_camera(opt, p) for p in pose_raw_all], dim=0)
         return pose_canon_all
 
     def __getitem__(self,idx):
