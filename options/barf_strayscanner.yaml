@@ -27,4 +27,5 @@ depth :
     use_depth: true
     use_depth_loss : true
     sampling_half_confi0 : true                             # true이면 confi0인곳 반씩 샘플링 , false이면 128개 간격 샘플링
+    quad_sampling : false                                    # nerf.py sample_depth
 

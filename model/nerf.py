@@ -131,24 +131,24 @@ class Model(base.Model):
         return pose,pose_GT
 
     @torch.no_grad()
-    def get_all_optitrack_training_poses(self,opt):
-        # get ground-truth (canonical) camera poses
-        # add synthetic pose perturbation to all training data
-        if opt.data.dataset in ["blender"] :
-            pose_GT = self.train_data.get_all_camera_poses(opt).to(opt.device)
-            pose = pose_GT # self.train_data.get_all_camera_poses(opt).to(opt.device)  #(3,4)
-            if opt.camera.noise:
-                pose = camera.pose.compose([self.graph.pose_noise,pose])
-        elif opt.data.dataset in ["arkit","strayscanner"] :
-            pose_GT = self.train_data.get_all_optitrack_camera_poses(opt).to(opt.device)  # (3,4) optitrack
-            pose = self.train_data.get_all_camera_poses(opt).to(opt.device)  #initial pose
-        else:
-            pose_GT = self.train_data.get_all_optitrack_camera_poses(opt).to(opt.device)  # (3,4) optitrack
-            pose = self.graph.pose_eye
-        # add learned pose correction to all training data
-        pose_refine = camera.lie.se3_to_SE3(self.graph.se3_refine.weight) #embeding
-        pose = camera.pose.compose([pose_refine,pose]) #refine_pose와 pose 사이 pose_new(x) = poseN o ... o pose2 o pose1(x) 이렇게
-        return pose,pose_GT
+    # def get_all_optitrack_training_poses(self,opt):
+    #     # get ground-truth (canonical) camera poses
+    #     # add synthetic pose perturbation to all training data
+    #     if opt.data.dataset in ["blender"] :
+    #         pose_GT = self.train_data.get_all_camera_poses(opt).to(opt.device)
+    #         pose = pose_GT # self.train_data.get_all_camera_poses(opt).to(opt.device)  #(3,4)
+    #         if opt.camera.noise:
+    #             pose = camera.pose.compose([self.graph.pose_noise,pose])
+    #     elif opt.data.dataset in ["arkit","strayscanner"] :
+    #         pose_GT = self.train_data.get_all_optitrack_camera_poses(opt).to(opt.device)  # (3,4) optitrack
+    #         pose = self.train_data.get_all_camera_poses(opt).to(opt.device)  #initial pose
+    #     else:
+    #         pose_GT = self.train_data.get_all_optitrack_camera_poses(opt).to(opt.device)  # (3,4) optitrack
+    #         pose = self.graph.pose_eye
+    #     # add learned pose correction to all training data
+    #     pose_refine = camera.lie.se3_to_SE3(self.graph.se3_refine.weight) #embeding
+    #     pose = camera.pose.compose([pose_refine,pose]) #refine_pose와 pose 사이 pose_new(x) = poseN o ... o pose2 o pose1(x) 이렇게
+    #     return pose,pose_GT
 
 
     @torch.no_grad()
@@ -654,6 +654,56 @@ class Graph(base.Graph):
     #     return depth_samples
 
 
+    # def sample_depth(self,opt,batch_size,num_rays=None,idx=None,ray_idx=None,depth=None,confidence=None,near=None,far=None):
+    #     # sample_intvs : sampling point num , idx : batch_num
+    #     num_rays = num_rays or opt.H * opt.W
+    #     depth_min,depth_max=opt.nerf.depth.range
+    #     rand_samples = torch.rand(batch_size, num_rays, opt.nerf.sample_intvs, 1, device=opt.device) if opt.nerf.sample_stratified else 0.5
+    #     rand_samples += torch.arange(opt.nerf.sample_intvs, device=opt.device)[None, None, :, None].float()  # [B,HW,N,1] [1,1024,128,1]
+    #     depth_samples = rand_samples / opt.nerf.sample_intvs * (depth_max - depth_min) + depth_min  # [B,HW,N,1] [1,1024,128,1]
+    #
+    #     if opt.depth.use_depth and near is not None and far is not None: # [train_num,H,W] use depth info
+    #         N_samples_half = opt.nerf.sample_intvs // 2
+    #
+    #         # half sampling with depth infor
+    #         rand_samples = torch.rand(batch_size, num_rays, N_samples_half, 1,device=opt.device) if opt.nerf.sample_stratified else 0.5
+    #         rand_samples += torch.arange(N_samples_half, device=opt.device)[None, None, :,None].float()  # [B,HW,N,1] [1,1024,64,1]
+    #
+    #         near = near.view(batch_size,-1)
+    #         far = far.view(batch_size,-1)
+    #         near, far = near[:,ray_idx],far[:, ray_idx]
+    #         near, far = near.unsqueeze(-1), far.unsqueeze(-1)
+    #         near, far = near.expand_as(rand_samples[...,0]),  far.expand_as(rand_samples[...,0])  #[B,H*W,N]
+    #         near, far = near.unsqueeze(-1), far.unsqueeze(-1)  # [B,H*W,N,1]
+    #         depth_samples1 = rand_samples / N_samples_half * (far - near) + near  # [B,HW,N,1] [1,1024,64,1]
+    #
+    #         # origin half sampling
+    #         rand_samples2 = torch.rand(batch_size, num_rays, N_samples_half, 1, device=opt.device) if opt.nerf.sample_stratified else 0.5
+    #         rand_samples2 += torch.arange(N_samples_half, device=opt.device)[None, None, :,None].float()  # [B,HW,N,1] [1,1024,64,1]
+    #         depth_samples2 = rand_samples2 / N_samples_half * (depth_max - depth_min) + depth_min  # [B,HW,N,1] [1,1024,64,1]
+    #
+    #         # combination
+    #         depth_samples_combination = torch.cat((depth_samples1,depth_samples2),dim=2) # [1,1024,128,1]
+    #         depth_samples_combination, _ = torch.sort(depth_samples_combination,dim=2)
+    #         if not opt.depth.sampling_half_confi0:
+    #             # confi0 opt.nerf.sample_intvs sampling
+    #             confidence = confidence.view(batch_size, -1)
+    #             confidence = confidence[:, ray_idx]  # [1,1024]
+    #             confi0 = confidence == 0
+    #             depth_samples_combination[confi0] = depth_samples[confi0]
+    #         depth_samples = depth_samples_combination
+    #
+    #     # else:  #origin
+    #     #     rand_samples = torch.rand(batch_size, num_rays, opt.nerf.sample_intvs, 1, device=opt.device) if opt.nerf.sample_stratified else 0.5
+    #     #     rand_samples += torch.arange(opt.nerf.sample_intvs, device=opt.device)[None, None, :,None].float()  # [B,HW,N,1] [1,1024,128,1]
+    #     #     depth_samples = rand_samples/opt.nerf.sample_intvs * (depth_max-depth_min) + depth_min # [B,HW,N,1] [1,1024,128,1]
+    #
+    #     depth_samples = dict(
+    #         metric=depth_samples,
+    #         inverse=1/(depth_samples+1e-8),
+    #     )[opt.nerf.depth.param]
+    #     return depth_samples
+
     def sample_depth(self,opt,batch_size,num_rays=None,idx=None,ray_idx=None,depth=None,confidence=None,near=None,far=None):
         # sample_intvs : sampling point num , idx : batch_num
         num_rays = num_rays or opt.H * opt.W
@@ -663,11 +713,19 @@ class Graph(base.Graph):
         depth_samples = rand_samples / opt.nerf.sample_intvs * (depth_max - depth_min) + depth_min  # [B,HW,N,1] [1,1024,128,1]
 
         if opt.depth.use_depth and near is not None and far is not None: # [train_num,H,W] use depth info
-            N_samples_half = opt.nerf.sample_intvs // 2
+            if opt.depth.quad_sampling:
+                N_samples_depth = opt.nerf.sample_intvs // 4
+                N_samples_origin = N_samples_depth * 3
+            else :
+
+                N_samples_half = opt.nerf.sample_intvs // 2
+                N_samples_depth = opt.nerf.sample_intvs // 2
+                N_samples_origin = opt.nerf.sample_intvs // 2
+
 
             # half sampling with depth infor
-            rand_samples = torch.rand(batch_size, num_rays, N_samples_half, 1,device=opt.device) if opt.nerf.sample_stratified else 0.5
-            rand_samples += torch.arange(N_samples_half, device=opt.device)[None, None, :,None].float()  # [B,HW,N,1] [1,1024,64,1]
+            rand_samples = torch.rand(batch_size, num_rays, N_samples_depth, 1,device=opt.device) if opt.nerf.sample_stratified else 0.5
+            rand_samples += torch.arange(N_samples_depth, device=opt.device)[None, None, :,None].float()  # [B,HW,N,1] [1,1024,64,1]
 
             near = near.view(batch_size,-1)
             far = far.view(batch_size,-1)
@@ -675,12 +733,12 @@ class Graph(base.Graph):
             near, far = near.unsqueeze(-1), far.unsqueeze(-1)
             near, far = near.expand_as(rand_samples[...,0]),  far.expand_as(rand_samples[...,0])  #[B,H*W,N]
             near, far = near.unsqueeze(-1), far.unsqueeze(-1)  # [B,H*W,N,1]
-            depth_samples1 = rand_samples / N_samples_half * (far - near) + near  # [B,HW,N,1] [1,1024,64,1]
+            depth_samples1 = rand_samples / N_samples_depth * (far - near) + near  # [B,HW,N,1] [1,1024,64,1]
 
             # origin half sampling
-            rand_samples2 = torch.rand(batch_size, num_rays, N_samples_half, 1, device=opt.device) if opt.nerf.sample_stratified else 0.5
-            rand_samples2 += torch.arange(N_samples_half, device=opt.device)[None, None, :,None].float()  # [B,HW,N,1] [1,1024,64,1]
-            depth_samples2 = rand_samples2 / N_samples_half * (depth_max - depth_min) + depth_min  # [B,HW,N,1] [1,1024,64,1]
+            rand_samples2 = torch.rand(batch_size, num_rays, N_samples_origin, 1, device=opt.device) if opt.nerf.sample_stratified else 0.5
+            rand_samples2 += torch.arange(N_samples_origin, device=opt.device)[None, None, :,None].float()  # [B,HW,N,1] [1,1024,64,1]
+            depth_samples2 = rand_samples2 / N_samples_origin * (depth_max - depth_min) + depth_min  # [B,HW,N,1] [1,1024,64,1]
 
             # combination
             depth_samples_combination = torch.cat((depth_samples1,depth_samples2),dim=2) # [1,1024,128,1]
@@ -703,6 +761,7 @@ class Graph(base.Graph):
             inverse=1/(depth_samples+1e-8),
         )[opt.nerf.depth.param]
         return depth_samples
+
 
     def sample_depth_from_pdf(self,opt,pdf):
         depth_min,depth_max = opt.nerf.depth.range
