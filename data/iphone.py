@@ -67,7 +67,8 @@ class Dataset(base.Dataset):
                 line_data_list = line.split(' ')
                 if len(line_data_list) == 0:
                     continue
-                pose_raw = np.reshape(line_data_list[1:], (3, 4))
+                pose_raw = np.array(line_data_list[1:]).astype(np.float32)
+                pose_raw = np.reshape(pose_raw, (3, 4))
                 cam_gt_pose.append(pose_raw)
             cam_gt_pose = torch.from_numpy(np.array(cam_gt_pose)).float()
             self.opti_pose = cam_gt_pose
@@ -191,7 +192,7 @@ class Dataset(base.Dataset):
         return pose
 
     def parse_raw_camera_for_optitrack(self,opt,pose_raw):
-        pose_flip = camera.pose(R=torch.diag(torch.tensor([1,-1,-1])))
+        pose_flip = camera.pose(R=torch.diag(torch.tensor([1,1,1])))
         pose = camera.pose.compose([pose_flip,pose_raw[:3]])
-        pose = camera.pose.invert(pose)  #아마 c2w->w2c?
+        pose = camera.pose.invert(pose)  #w2c -> c2w
         return pose
