@@ -54,12 +54,13 @@ class Dataset(base.Dataset):
 
         self.gt_pose = self.cam_pose
         self.opti_pose = self.cam_pose
+        self.use_opti = False
 
-        # for GT data(optitrack)
         # for GT data(optitrack)
         gt_pose_fname = "{}/opti_odometry_train.txt".format(self.path)
         gt_pose_file = os.path.join('./', gt_pose_fname)
-        if os.path.isfile(gt_pose_file):    # gt file exist
+        if os.path.isfile(gt_pose_file):  # gt file exist
+            self.use_opti = True
             with open(gt_pose_file, "r") as f:  # frame.txt 읽어서
                 cam_frame_lines = f.readlines()
             cam_gt_pose = []  # time r1x y z tx r2x y z ty r3x y z tz
@@ -72,7 +73,6 @@ class Dataset(base.Dataset):
                 cam_gt_pose.append(pose_raw)
             cam_gt_pose = torch.from_numpy(np.array(cam_gt_pose)).float()
             self.opti_pose = cam_gt_pose
-
 
         # preload dataset
         if opt.data.preload:
@@ -115,11 +115,21 @@ class Dataset(base.Dataset):
         return pose
 
     #get_all_gt_camera_poses
+    # def get_all_optitrack_camera_poses(self,opt): # optitrack pose load
+    #     #여기 iphone pose 평가할때 gt 데이터 로드 위해(train,val,test)
+    #     pose_raw_all = [torch.tensor(f, dtype=torch.float32) for f in self.cam_pose]
+    #     pose = torch.stack([self.parse_raw_camera_for_optitrack(opt, p) for p in pose_raw_all], dim=0)
+    #     return pose
+    #
     def get_all_optitrack_camera_poses(self,opt): # optitrack pose load
-        #여기 iphone pose 평가할때 gt 데이터 로드 위해(train,val,test)
-        pose_raw_all = [torch.tensor(f, dtype=torch.float32) for f in self.cam_pose]
-        pose = torch.stack([self.parse_raw_camera_for_optitrack(opt, p) for p in pose_raw_all], dim=0)
-        return pose
+        pose_raw_all = [torch.tensor(f ,dtype=torch.float32) for f in self.opti_pose]
+        if self.use_opti:
+            pose_canon_all = torch.stack([self.parse_raw_camera_for_optitrack(opt, p) for p in pose_raw_all], dim=0)
+        else :
+            pose_canon_all = torch.stack([self.parse_raw_camera(opt, p) for p in pose_raw_all], dim=0)
+        return pose_canon_all
+
+
 
 
     def __getitem__(self,idx):
@@ -195,4 +205,29 @@ class Dataset(base.Dataset):
         pose_flip = camera.pose(R=torch.diag(torch.tensor([1,1,1])))
         pose = camera.pose.compose([pose_flip,pose_raw[:3]])
         pose = camera.pose.invert(pose)  #w2c -> c2w
+        return pose
+
+    def parse_raw_camera_for_optitrack(self, opt, pose_raw):
+        t3 = torch.tensor([[1, 0, 0],
+                           [0, 1, 0],
+                           [0, 0, 1]])
+
+        pose_flip = camera.pose(R=t3)  # t3
+        pose = camera.pose.compose([pose_flip, pose_raw[:3]])
+
+        angle = 7 * np.pi / 180
+        angle = torch.tensor(angle)
+        R_x = camera.angle_to_rotation_matrix(angle, "X")
+
+        angle = -15 * np.pi / 180
+        angle = torch.tensor(angle)
+        R_y = camera.angle_to_rotation_matrix(angle, "Y")
+
+        angle = -2 * np.pi / 180
+        angle = torch.tensor(angle)
+        R_z = camera.angle_to_rotation_matrix(angle, "Z")
+        pose_flip = camera.pose(R=R_x @ R_y @ R_z)  # R_y @ R_x@  # x,y 회전행렬 적용'
+        pose = camera.pose.compose([pose_flip, pose_raw[:3]])
+
+        pose = camera.pose.invert(pose)  # 아마 c2w->w2c?
         return pose
